@@ -26,9 +26,9 @@ export class DiagramWatcher {
 
   private debounce(path: string): void {
     this.cancelDebounce(path)
-    this.timers.set(path, setTimeout(async () => {
+    this.timers.set(path, setTimeout(() => {
       this.timers.delete(path)
-      await this.indexer.reindexFile(path)
+      void this.indexer.reindexFile(path)
     }, 2000))
   }
 

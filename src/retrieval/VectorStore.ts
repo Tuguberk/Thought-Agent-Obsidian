@@ -72,9 +72,8 @@ export class VectorStore {
   scheduleSave(): void {
     if (this.saveScheduled) return;
     this.saveScheduled = true;
-    setTimeout(async () => {
-      await this.save();
-      this.saveScheduled = false;
+    setTimeout(() => {
+      void this.save().finally(() => { this.saveScheduled = false; });
     }, 2000);
   }
 

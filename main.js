@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => AIAgentPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -57,7 +57,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Thought Agent Settings" });
+    new import_obsidian.Setting(containerEl).setName("Thought Agent settings").setHeading();
     new import_obsidian.Setting(containerEl).setName("Provider").setDesc("LLM provider to use").addDropdown((drop) => {
       drop.addOption("anthropic", "Anthropic (Claude)");
       drop.addOption("lmstudio", "LM Studio (local)");
@@ -69,8 +69,8 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     });
     if (this.plugin.settings.provider === "anthropic") {
-      containerEl.createEl("h3", { text: "Anthropic" });
-      new import_obsidian.Setting(containerEl).setName("API Key").setDesc("Your Anthropic API key (stored securely in plugin data)").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Anthropic").setHeading();
+      new import_obsidian.Setting(containerEl).setName("API key").setDesc("Your Anthropic API key (stored securely in plugin data)").addText((text) => {
         text.setPlaceholder("sk-ant-...").setValue(this.plugin.settings.anthropicApiKey).onChange(async (value) => {
           this.plugin.settings.anthropicApiKey = value;
           await this.plugin.saveSettings();
@@ -89,7 +89,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     }
     if (this.plugin.settings.provider === "lmstudio") {
-      containerEl.createEl("h3", { text: "LM Studio" });
+      new import_obsidian.Setting(containerEl).setName("LM Studio").setHeading();
       new import_obsidian.Setting(containerEl).setName("Base URL").setDesc("LM Studio local server URL (default: http://localhost:1234/v1)").addText((text) => {
         text.setPlaceholder("http://localhost:1234/v1").setValue(this.plugin.settings.lmstudioBaseUrl).onChange(async (value) => {
           this.plugin.settings.lmstudioBaseUrl = value.replace(/\/$/, "");
@@ -131,14 +131,14 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         });
       });
     }
-    containerEl.createEl("h3", { text: "Agent" });
+    new import_obsidian.Setting(containerEl).setName("Agent").setHeading();
     new import_obsidian.Setting(containerEl).setName("Max iterations").setDesc("Maximum tool-call iterations per query (default: 15)").addSlider((slider) => {
       slider.setLimits(3, 30, 1).setValue(this.plugin.settings.maxIterations).setDynamicTooltip().onChange(async (value) => {
         this.plugin.settings.maxIterations = value;
         await this.plugin.saveSettings();
       });
     });
-    containerEl.createEl("h3", { text: "Embeddings" });
+    new import_obsidian.Setting(containerEl).setName("Embeddings").setHeading();
     new import_obsidian.Setting(containerEl).setName("Embedding model").setDesc("Local embedding model (downloads ~25MB on first use)").addDropdown((drop) => {
       drop.addOption("Xenova/all-MiniLM-L6-v2", "all-MiniLM-L6-v2 (384-dim)");
       drop.setValue(this.plugin.settings.embeddingModel);
@@ -147,7 +147,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    containerEl.createEl("h3", { text: "Index status" });
+    new import_obsidian.Setting(containerEl).setName("Index status").setHeading();
     const statusEl = containerEl.createDiv("index-status");
     const lastIndexed = this.plugin.settings.lastIndexedAt ? new Date(this.plugin.settings.lastIndexedAt).toLocaleString() : "Never";
     statusEl.createEl("p", {
@@ -167,13 +167,13 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         }
       });
     });
-    containerEl.createEl("h3", { text: "Excalidraw Integration" });
+    new import_obsidian.Setting(containerEl).setName("Excalidraw integration").setHeading();
     const excalidrawAvailable = this.plugin.excalidrawAdapter?.isAvailable ?? false;
     const excalidrawStatusEl = containerEl.createEl("p", {
       text: excalidrawAvailable ? "\u2705 Excalidraw plugin detected \u2014 diagram features enabled." : "\u26A0\uFE0F Excalidraw plugin not found \u2014 diagram features disabled.",
       cls: "ai-preview-meta"
     });
-    statusEl.style.marginBottom = "8px";
+    statusEl.addClass("index-status-section");
     if (excalidrawAvailable) {
       new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc("Re-index .excalidraw files when they change (no LLM calls, no tokens consumed).").addToggle((t) => {
         t.setValue(this.plugin.settings.diagramWatcherEnabled);
@@ -376,7 +376,7 @@ var ChatView = class extends import_obsidian2.ItemView {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         if (this.abortController) this.stop();
-        else this.sendMessage();
+        else void this.sendMessage();
       }
     });
     const controls = composer.createDiv("ai-composer-controls");
@@ -516,10 +516,10 @@ var ChatView = class extends import_obsidian2.ItemView {
       });
     }
     if (chips.length === 0) {
-      this.sessionBadgeEl.style.display = "none";
+      this.sessionBadgeEl.hide();
       return;
     }
-    this.sessionBadgeEl.style.display = "flex";
+    this.sessionBadgeEl.show();
     for (const chip of chips) {
       const el = this.sessionBadgeEl.createDiv("ai-context-chip");
       el.createEl("span", { text: chip.icon, cls: "ai-context-chip-icon" });
@@ -691,11 +691,11 @@ var ChatView = class extends import_obsidian2.ItemView {
             this.scrollToBottom();
           },
           onPendingChange: (change) => {
-            if (!this.stopped) this.plugin.openPreviewView(change);
+            if (!this.stopped) void this.plugin.openPreviewView(change);
           },
           onGraphQuery: (filter) => {
             if (!this.stopped)
-              this.plugin.openGraphView(
+              void this.plugin.openGraphView(
                 filter
               );
           }
@@ -779,7 +779,7 @@ var PreviewView = class extends import_obsidian3.ItemView {
     if (this.change?.kind === "create_diagram") return `Diagram: ${this.change.spec.title}`;
     if (this.change?.kind === "update_diagram") return `Update diagram: ${this.change.filePath.split("/").pop()}`;
     if (this.change?.kind === "annotate_diagram") return `Annotate: ${this.change.diagramPath.split("/").pop()}`;
-    return "AI Preview";
+    return "AI preview";
   }
   getIcon() {
     return "eye";
@@ -794,8 +794,9 @@ var PreviewView = class extends import_obsidian3.ItemView {
   markHandled() {
     this.handled = true;
   }
-  async onOpen() {
+  onOpen() {
     if (this.change) this.renderChange();
+    return Promise.resolve();
   }
   onClose() {
     if (!this.handled && this.change) this.callbacks.onReject(this.change);
@@ -868,9 +869,9 @@ var PreviewView = class extends import_obsidian3.ItemView {
     if (change.note.tags.length > 0) {
       container.createEl("p", { text: `Tags: ${change.note.tags.join(", ")}`, cls: "ai-preview-meta" });
     }
-    container.createEl("h3", { text: "Content Preview" });
+    container.createEl("h3", { text: "Content preview" });
     const preview = container.createDiv("ai-preview-content");
-    import_obsidian3.MarkdownRenderer.render(this.app, change.note.content, preview, "", this);
+    void import_obsidian3.MarkdownRenderer.render(this.app, change.note.content, preview, "", this);
   }
   renderEdit(container, change) {
     container.createEl("p", { text: `File: ${change.notePath}`, cls: "ai-preview-meta" });
@@ -914,7 +915,6 @@ var PreviewView = class extends import_obsidian3.ItemView {
   renderCreateDiagram(container, change) {
     const typeLabel = change.spec.type.replace("-", " ").toUpperCase();
     const badge = container.createEl("span", { text: typeLabel, cls: "ai-diagram-badge" });
-    badge.style.cssText = "background:var(--interactive-accent);color:var(--text-on-accent);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-left:8px;";
     container.createEl("p", { text: `File: ${change.filePath}`, cls: "ai-preview-meta" });
     container.createEl("p", { text: `${change.spec.nodes.length} nodes \xB7 ${change.spec.edges.length} edges`, cls: "ai-preview-meta" });
     container.createEl("h3", { text: "Nodes" });
@@ -955,8 +955,7 @@ var PreviewView = class extends import_obsidian3.ItemView {
   renderAnnotateDiagram(container, change) {
     container.createEl("p", { text: `Note: ${change.notePath}`, cls: "ai-preview-meta" });
     container.createEl("p", { text: `Diagram: ${change.diagramPath}`, cls: "ai-preview-meta" });
-    const panels = container.createDiv();
-    panels.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:16px;";
+    const panels = container.createDiv("ai-annotate-panels");
     const left = panels.createDiv();
     left.createEl("h3", { text: "Note addition" });
     left.createEl("pre").createEl("code", { text: change.noteAddition });
@@ -984,7 +983,7 @@ var GraphQueryView = class extends import_obsidian4.ItemView {
     return GRAPH_VIEW_TYPE;
   }
   getDisplayText() {
-    return "AI Graph View";
+    return "AI graph view";
   }
   getIcon() {
     return "git-fork";
@@ -996,8 +995,9 @@ var GraphQueryView = class extends import_obsidian4.ItemView {
     this.initLayout();
     this.renderGraph();
   }
-  async onOpen() {
+  onOpen() {
     this.buildUI();
+    return Promise.resolve();
   }
   onClose() {
     if (this.animFrame) cancelAnimationFrame(this.animFrame);
@@ -1130,7 +1130,7 @@ var GraphQueryView = class extends import_obsidian4.ItemView {
       if (Math.sqrt(dx * dx + dy * dy) < 12) {
         const file = this.app.vault.getFileByPath(node.id);
         if (file) {
-          this.app.workspace.openLinkText(node.id, "", false);
+          void this.app.workspace.openLinkText(node.id, "", false);
         }
         break;
       }
@@ -5773,7 +5773,7 @@ var ToolExecutor = class {
       )
     };
   }
-  async getNeighbors(input) {
+  getNeighbors(input) {
     const notePath = input.notePath;
     const depth = input.depth ?? 1;
     const file = this.app.vault.getFileByPath(notePath);
@@ -5823,7 +5823,7 @@ var ToolExecutor = class {
     expand(notePath, depth);
     return { content: JSON.stringify(neighbors, null, 2) };
   }
-  async getBacklinks(input) {
+  getBacklinks(input) {
     const notePath = input.notePath;
     const file = this.app.vault.getFileByPath(notePath);
     if (!file || !(file instanceof import_obsidian7.TFile))
@@ -6097,7 +6097,7 @@ tags: [${tags.join(", ")}]
     const filePath = input.filePath;
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath);
-      if (!file) return { content: `Diagram not found: ${filePath}` };
+      if (!file || !(file instanceof import_obsidian7.TFile)) return { content: `Diagram not found: ${filePath}` };
       const content = await this.app.vault.read(file);
       const extracted = this.diagramExtractor.extract(filePath, content);
       return {
@@ -6133,7 +6133,7 @@ tags: [${tags.join(", ")}]
       })), null, 2)
     };
   }
-  async createDiagram(input) {
+  createDiagram(input) {
     if (!this.excalidraw) return { content: "Excalidraw plugin is not installed." };
     const spec = {
       type: input.type,
@@ -6308,9 +6308,10 @@ var VectorStore = class {
   scheduleSave() {
     if (this.saveScheduled) return;
     this.saveScheduled = true;
-    setTimeout(async () => {
-      await this.save();
-      this.saveScheduled = false;
+    setTimeout(() => {
+      void this.save().finally(() => {
+        this.saveScheduled = false;
+      });
     }, 2e3);
   }
   upsertChunks(chunks) {
@@ -6680,6 +6681,7 @@ var ChangeApplier = class {
 };
 
 // src/excalidraw/ExcalidrawAdapter.ts
+var import_obsidian10 = require("obsidian");
 function getExcalidrawAPI(app) {
   const plugins = app.plugins?.plugins;
   return plugins?.["obsidian-excalidraw-plugin"]?.ea ?? null;
@@ -6693,21 +6695,21 @@ var ExcalidrawAdapter = class {
   }
   async getElementsFromFile(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file) throw new Error(`File not found: ${filePath}`);
+    if (!file || !(file instanceof import_obsidian10.TFile)) throw new Error(`File not found: ${filePath}`);
     const content = await this.app.vault.read(file);
     const parsed = JSON.parse(content);
     return parsed.elements ?? [];
   }
   async readFile(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file) throw new Error(`File not found: ${filePath}`);
+    if (!file || !(file instanceof import_obsidian10.TFile)) throw new Error(`File not found: ${filePath}`);
     const content = await this.app.vault.read(file);
     return JSON.parse(content);
   }
   async writeFile(filePath, content) {
     const json = JSON.stringify(content, null, 2);
     const existing = this.app.vault.getAbstractFileByPath(filePath);
-    if (existing) {
+    if (existing instanceof import_obsidian10.TFile) {
       await this.app.vault.modify(existing, json);
     } else {
       const parts = filePath.split("/");
@@ -6734,7 +6736,7 @@ var ExcalidrawAdapter = class {
 };
 
 // src/excalidraw/DiagramIndexer.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 var DiagramIndexer = class {
   constructor(app, store) {
     this.app = app;
@@ -6754,7 +6756,7 @@ var DiagramIndexer = class {
   async reindexFile(filePath) {
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath);
-      if (!(file instanceof import_obsidian10.TFile)) return;
+      if (!(file instanceof import_obsidian11.TFile)) return;
       const content = await this.app.vault.read(file);
       const extracted = this.extractor.extract(filePath, content);
       const embedding = await embed(extracted.rawTextContent);
@@ -6799,9 +6801,9 @@ var DiagramWatcher = class {
   }
   debounce(path) {
     this.cancelDebounce(path);
-    this.timers.set(path, setTimeout(async () => {
+    this.timers.set(path, setTimeout(() => {
       this.timers.delete(path);
-      await this.indexer.reindexFile(path);
+      void this.indexer.reindexFile(path);
     }, 2e3));
   }
   cancelDebounce(path) {
@@ -6814,7 +6816,7 @@ var DiagramWatcher = class {
 };
 
 // src/main.ts
-var AIAgentPlugin = class extends import_obsidian11.Plugin {
+var AIAgentPlugin = class extends import_obsidian12.Plugin {
   settings;
   vectorStore;
   indexer;
@@ -6847,13 +6849,17 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
     this.addSettingTab(new AIAgentSettingTab(this.app, this));
     this.statusBarItem = this.addStatusBarItem();
     this.statusBarItem.addClass("ai-agent-statusbar");
-    this.statusBarItem.style.display = "none";
+    this.statusBarItem.hide();
     this.renderStatusBar();
-    this.addRibbonIcon("bot", "Open Thought Agent", () => this.activateChatView());
+    this.addRibbonIcon("bot", "Open Thought Agent", () => {
+      void this.activateChatView();
+    });
     this.addCommand({
       id: "open-chat",
-      name: "Open Thought Agent chat",
-      callback: () => this.activateChatView()
+      name: "Open chat",
+      callback: () => {
+        void this.activateChatView();
+      }
     });
     this.addCommand({
       id: "approve-all-pending",
@@ -6879,7 +6885,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
       callback: async () => {
         const provider = this.buildProvider();
         if (!provider) {
-          new import_obsidian11.Notice("No provider configured. Go to Settings \u2192 Thought Agent.");
+          new import_obsidian12.Notice("No provider configured. Go to settings \u2192 Thought Agent.");
           return;
         }
         try {
@@ -6889,11 +6895,11 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
             "You are a helpful assistant."
           );
           const text = resp.content.find((b) => b.type === "text");
-          new import_obsidian11.Notice(
+          new import_obsidian12.Notice(
             `Connection OK: ${text?.text ?? "no response"}`
           );
         } catch (e) {
-          new import_obsidian11.Notice(`Connection failed: ${e.message}`);
+          new import_obsidian12.Notice(`Connection failed: ${e.message}`);
         }
       }
     });
@@ -6906,7 +6912,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
     });
   }
   onunload() {
-    this.vectorStore.save();
+    void this.vectorStore.save();
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -6959,10 +6965,10 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
     this.statusBarItem.empty();
     const count = this.pendingChanges.length;
     if (count === 0) {
-      this.statusBarItem.style.display = "none";
+      this.statusBarItem.hide();
       return;
     }
-    this.statusBarItem.style.display = "flex";
+    this.statusBarItem.show();
     const label = this.statusBarItem.createEl("span", {
       text: `${count} pending`,
       cls: "ai-statusbar-count"
@@ -6981,7 +6987,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
   }
   revealFirstPending() {
     const leaves = this.app.workspace.getLeavesOfType(PREVIEW_VIEW_TYPE);
-    if (leaves.length > 0) this.app.workspace.revealLeaf(leaves[0]);
+    if (leaves.length > 0) void this.app.workspace.revealLeaf(leaves[0]);
   }
   async approveAll() {
     const changes = [...this.pendingChanges];
@@ -6993,14 +6999,14 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
         this.removePending(change);
         approved++;
       } catch (e) {
-        new import_obsidian11.Notice(`Failed to apply change: ${e.message}`);
+        new import_obsidian12.Notice(`Failed to apply change: ${e.message}`);
       }
     }
     for (const leaf of this.app.workspace.getLeavesOfType(PREVIEW_VIEW_TYPE)) {
       leaf.view.markHandled();
       leaf.detach();
     }
-    new import_obsidian11.Notice(`Approved ${approved} change${approved !== 1 ? "s" : ""}.`);
+    new import_obsidian12.Notice(`Approved ${approved} change${approved !== 1 ? "s" : ""}.`);
   }
   rejectAll() {
     const count = this.pendingChanges.length;
@@ -7011,12 +7017,12 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
       leaf.view.markHandled();
       leaf.detach();
     }
-    new import_obsidian11.Notice(`Rejected ${count} change${count !== 1 ? "s" : ""}.`);
+    new import_obsidian12.Notice(`Rejected ${count} change${count !== 1 ? "s" : ""}.`);
   }
   // ── Provider / agent ─────────────────────────────────────────────────────
   getPluginDir() {
     const adapter = this.app.vault.adapter;
-    if (adapter instanceof import_obsidian11.FileSystemAdapter) {
+    if (adapter instanceof import_obsidian12.FileSystemAdapter) {
       return `${adapter.getBasePath()}/${this.manifest.dir ?? ""}`;
     }
     return this.manifest.dir ?? "";
@@ -7061,7 +7067,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
     const current = this.getActiveModel();
     try {
       if (this.settings.provider === "lmstudio") {
-        const res2 = await (0, import_obsidian11.requestUrl)({
+        const res2 = await (0, import_obsidian12.requestUrl)({
           url: `${this.settings.lmstudioBaseUrl}/models`,
           throw: false
         });
@@ -7080,7 +7086,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
           ])
         );
       }
-      const res = await (0, import_obsidian11.requestUrl)({
+      const res = await (0, import_obsidian12.requestUrl)({
         url: "https://api.anthropic.com/v1/models",
         method: "GET",
         headers: {
@@ -7109,10 +7115,10 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
   }
   initExcalidraw() {
     if (!this.excalidrawAdapter.isAvailable || !this.settings.excalidrawEnabled) {
-      console.log("[ThoughtAgent] Excalidraw integration disabled.");
+      console.debug("[ThoughtAgent] Excalidraw integration disabled.");
       return;
     }
-    console.log("[ThoughtAgent] Excalidraw integration enabled.");
+    console.debug("[ThoughtAgent] Excalidraw integration enabled.");
     this.diagramIndexer = new DiagramIndexer(this.app, this.vectorStore);
     this.diagramWatcher = new DiagramWatcher(this.app, this.diagramIndexer);
     if (this.settings.diagramWatcherEnabled) this.diagramWatcher.register();
@@ -7181,20 +7187,20 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
   async activateChatView() {
     const existing = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      void this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf = this.app.workspace.getRightLeaf(false);
     if (!leaf) return;
     await leaf.setViewState({ type: CHAT_VIEW_TYPE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    void this.app.workspace.revealLeaf(leaf);
     this.wireAgentLoop();
   }
   async openPreviewView(change) {
     this.addPending(change);
     const leaf = this.app.workspace.getLeaf("tab");
     await leaf.setViewState({ type: PREVIEW_VIEW_TYPE });
-    this.app.workspace.revealLeaf(leaf);
+    void this.app.workspace.revealLeaf(leaf);
     const view = leaf.view;
     view.setPendingChange(change);
   }
@@ -7277,7 +7283,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
         else await this.app.vault.create(candidate.path, hubContent);
         hubPath = candidate.path;
         if (!candidate.hidden) {
-          new import_obsidian11.Notice(
+          new import_obsidian12.Notice(
             "Hidden graph note path is blocked by current vault settings. Using AI Agent/Graph Query Results.md fallback."
           );
         }
@@ -7293,7 +7299,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
         hubErrors
       );
       const reason = hubErrors[0] ? ` (${hubErrors[0]})` : "";
-      new import_obsidian11.Notice(`Could not create graph query note${reason}`);
+      new import_obsidian12.Notice(`Could not create graph query note${reason}`);
       const fallbackPath = filter.linkedTo ?? matchedPaths[0] ?? null;
       if (fallbackPath) {
         const fallbackFile = this.app.vault.getFileByPath(fallbackPath);
@@ -7310,7 +7316,7 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
             if (commands?.commands?.[id]) {
               const ok = commands.executeCommandById?.(id);
               if (ok) {
-                new import_obsidian11.Notice("Opened Local Graph on top filtered match.");
+                new import_obsidian12.Notice("Opened local graph on top filtered match.");
                 return;
               }
             }
@@ -7321,14 +7327,14 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
             active: true,
             state: { file: fallbackPath }
           });
-          this.app.workspace.revealLeaf(localLeaf);
-          new import_obsidian11.Notice("Opened Local Graph on top filtered match.");
+          void this.app.workspace.revealLeaf(localLeaf);
+          new import_obsidian12.Notice("Opened local graph on top filtered match.");
           return;
         }
       }
       const leaf = this.app.workspace.getLeaf("tab");
       await leaf.setViewState({ type: "graph", active: true });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
       return;
     }
     const openLocalGraph = async (notePath) => {
@@ -7354,16 +7360,16 @@ var AIAgentPlugin = class extends import_obsidian11.Plugin {
         active: true,
         state: { file: notePath }
       });
-      this.app.workspace.revealLeaf(localLeaf);
+      void this.app.workspace.revealLeaf(localLeaf);
       return true;
     };
     const openedLocal = await openLocalGraph(hubPath);
     if (!openedLocal) {
       const leaf = this.app.workspace.getLeaf("tab");
       await leaf.setViewState({ type: "graph", active: true });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
     }
     const mode = openedLocal ? "Local Graph" : "Graph";
-    new import_obsidian11.Notice(`Opened Obsidian ${mode}. Matched notes: ${matchCount}.`);
+    new import_obsidian12.Notice(`Opened Obsidian ${mode}. Matched notes: ${matchCount}.`);
   }
 };

@@ -76,15 +76,15 @@ export default class AIAgentPlugin extends Plugin {
     // Status bar
     this.statusBarItem = this.addStatusBarItem();
     this.statusBarItem.addClass("ai-agent-statusbar");
-    this.statusBarItem.style.display = "none";
+    this.statusBarItem.hide();
     this.renderStatusBar();
 
-    this.addRibbonIcon("bot", "Open Thought Agent", () => this.activateChatView());
+    this.addRibbonIcon("bot", "Open Thought Agent", () => { void this.activateChatView(); });
 
     this.addCommand({
       id: "open-chat",
-      name: "Open Thought Agent chat",
-      callback: () => this.activateChatView(),
+      name: "Open chat",
+      callback: () => { void this.activateChatView(); },
     });
 
     this.addCommand({
@@ -114,7 +114,7 @@ export default class AIAgentPlugin extends Plugin {
       callback: async () => {
         const provider = this.buildProvider();
         if (!provider) {
-          new Notice("No provider configured. Go to Settings → Thought Agent.");
+          new Notice("No provider configured. Go to settings → Thought Agent.");
           return;
         }
         try {
@@ -143,7 +143,7 @@ export default class AIAgentPlugin extends Plugin {
   }
 
   onunload(): void {
-    this.vectorStore.save();
+    void this.vectorStore.save();
   }
 
   async loadSettings(): Promise<void> {
@@ -206,11 +206,11 @@ export default class AIAgentPlugin extends Plugin {
     const count = this.pendingChanges.length;
 
     if (count === 0) {
-      this.statusBarItem.style.display = "none";
+      this.statusBarItem.hide();
       return;
     }
 
-    this.statusBarItem.style.display = "flex";
+    this.statusBarItem.show();
 
     const label = this.statusBarItem.createEl("span", {
       text: `${count} pending`,
@@ -233,7 +233,7 @@ export default class AIAgentPlugin extends Plugin {
 
   private revealFirstPending(): void {
     const leaves = this.app.workspace.getLeavesOfType(PREVIEW_VIEW_TYPE);
-    if (leaves.length > 0) this.app.workspace.revealLeaf(leaves[0]);
+    if (leaves.length > 0) void this.app.workspace.revealLeaf(leaves[0]);
   }
 
   async approveAll(): Promise<void> {
@@ -383,10 +383,10 @@ export default class AIAgentPlugin extends Plugin {
 
   private initExcalidraw(): void {
     if (!this.excalidrawAdapter.isAvailable || !this.settings.excalidrawEnabled) {
-      console.log('[ThoughtAgent] Excalidraw integration disabled.')
+      console.debug('[ThoughtAgent] Excalidraw integration disabled.')
       return
     }
-    console.log('[ThoughtAgent] Excalidraw integration enabled.')
+    console.debug('[ThoughtAgent] Excalidraw integration enabled.')
     this.diagramIndexer = new DiagramIndexer(this.app, this.vectorStore)
     this.diagramWatcher = new DiagramWatcher(this.app, this.diagramIndexer)
     if (this.settings.diagramWatcherEnabled) this.diagramWatcher.register()
@@ -462,13 +462,13 @@ export default class AIAgentPlugin extends Plugin {
   async activateChatView(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      void this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf = this.app.workspace.getRightLeaf(false);
     if (!leaf) return;
     await leaf.setViewState({ type: CHAT_VIEW_TYPE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    void this.app.workspace.revealLeaf(leaf);
     this.wireAgentLoop();
   }
 
@@ -476,7 +476,7 @@ export default class AIAgentPlugin extends Plugin {
     this.addPending(change);
     const leaf = this.app.workspace.getLeaf("tab");
     await leaf.setViewState({ type: PREVIEW_VIEW_TYPE });
-    this.app.workspace.revealLeaf(leaf);
+    void this.app.workspace.revealLeaf(leaf);
     const view = leaf.view as PreviewView;
     view.setPendingChange(change);
   }
@@ -632,7 +632,7 @@ export default class AIAgentPlugin extends Plugin {
             if (commands?.commands?.[id]) {
               const ok = commands.executeCommandById?.(id);
               if (ok) {
-                new Notice("Opened Local Graph on top filtered match.");
+                new Notice("Opened local graph on top filtered match.");
                 return;
               }
             }
@@ -648,8 +648,8 @@ export default class AIAgentPlugin extends Plugin {
             active: boolean;
             state: Record<string, unknown>;
           });
-          this.app.workspace.revealLeaf(localLeaf);
-          new Notice("Opened Local Graph on top filtered match.");
+          void this.app.workspace.revealLeaf(localLeaf);
+          new Notice("Opened local graph on top filtered match.");
           return;
         }
       }
@@ -659,7 +659,7 @@ export default class AIAgentPlugin extends Plugin {
         type: string;
         active: boolean;
       });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
       return;
     }
 
@@ -702,7 +702,7 @@ export default class AIAgentPlugin extends Plugin {
         active: boolean;
         state: Record<string, unknown>;
       });
-      this.app.workspace.revealLeaf(localLeaf);
+      void this.app.workspace.revealLeaf(localLeaf);
       return true;
     };
 
@@ -714,7 +714,7 @@ export default class AIAgentPlugin extends Plugin {
         type: string;
         active: boolean;
       });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
     }
 
     const mode = openedLocal ? "Local Graph" : "Graph";

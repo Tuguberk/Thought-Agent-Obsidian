@@ -781,3 +781,25 @@
   color: var(--text-muted);
   font-size: 13px;
 }
+
+.index-status-section {
+  margin-bottom: 8px;
+}
+
+/* Diagram badge in preview */
+.ai-diagram-badge {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+/* Annotate diagram two-column layout */
+.ai-annotate-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}

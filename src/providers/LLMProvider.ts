@@ -49,7 +49,7 @@ export interface Tool {
 
 export interface LLMResponse {
   content: ContentBlock[];
-  stopReason: "end_turn" | "tool_use" | "max_tokens" | string;
+  stopReason: string;
   reasoning?: string;
 }
 

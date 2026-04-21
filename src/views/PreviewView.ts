@@ -28,7 +28,7 @@ export class PreviewView extends ItemView {
     if (this.change?.kind === 'create_diagram') return `Diagram: ${this.change.spec.title}`
     if (this.change?.kind === 'update_diagram') return `Update diagram: ${this.change.filePath.split('/').pop()}`
     if (this.change?.kind === 'annotate_diagram') return `Annotate: ${this.change.diagramPath.split('/').pop()}`
-    return 'AI Preview'
+    return 'AI preview'
   }
   getIcon(): string { return 'eye' }
 
@@ -41,8 +41,9 @@ export class PreviewView extends ItemView {
 
   markHandled(): void { this.handled = true }
 
-  async onOpen(): Promise<void> {
+  onOpen(): Promise<void> {
     if (this.change) this.renderChange()
+    return Promise.resolve()
   }
 
   onClose(): Promise<void> {
@@ -113,9 +114,9 @@ export class PreviewView extends ItemView {
     if (change.note.tags.length > 0) {
       container.createEl('p', { text: `Tags: ${change.note.tags.join(', ')}`, cls: 'ai-preview-meta' })
     }
-    container.createEl('h3', { text: 'Content Preview' })
+    container.createEl('h3', { text: 'Content preview' })
     const preview = container.createDiv('ai-preview-content')
-    MarkdownRenderer.render(this.app, change.note.content, preview, '', this)
+    void MarkdownRenderer.render(this.app, change.note.content, preview, '', this)
   }
 
   private renderEdit(container: HTMLElement, change: Extract<PendingChange, { kind: 'edit' }>): void {
@@ -160,7 +161,6 @@ export class PreviewView extends ItemView {
   private renderCreateDiagram(container: HTMLElement, change: Extract<PendingChange, { kind: 'create_diagram' }>): void {
     const typeLabel = change.spec.type.replace('-', ' ').toUpperCase()
     const badge = container.createEl('span', { text: typeLabel, cls: 'ai-diagram-badge' })
-    badge.style.cssText = 'background:var(--interactive-accent);color:var(--text-on-accent);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-left:8px;'
 
     container.createEl('p', { text: `File: ${change.filePath}`, cls: 'ai-preview-meta' })
     container.createEl('p', { text: `${change.spec.nodes.length} nodes · ${change.spec.edges.length} edges`, cls: 'ai-preview-meta' })
@@ -208,8 +208,7 @@ export class PreviewView extends ItemView {
     container.createEl('p', { text: `Note: ${change.notePath}`, cls: 'ai-preview-meta' })
     container.createEl('p', { text: `Diagram: ${change.diagramPath}`, cls: 'ai-preview-meta' })
 
-    const panels = container.createDiv()
-    panels.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:16px;'
+    const panels = container.createDiv('ai-annotate-panels')
 
     const left = panels.createDiv()
     left.createEl('h3', { text: 'Note addition' })
