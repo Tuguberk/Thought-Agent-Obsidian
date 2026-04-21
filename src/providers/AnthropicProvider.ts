@@ -65,7 +65,7 @@ export class AnthropicProvider implements LLMProvider {
           type: "tool_use",
           id: block.id,
           name: block.name,
-          input: (block.input ?? {}) as Record<string, unknown>,
+          input: block.input ?? {},
         });
       } else if (block.type === "thinking") {
         const text = block.thinking ?? block.text;

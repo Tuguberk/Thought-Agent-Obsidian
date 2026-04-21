@@ -79,12 +79,16 @@ export default class AIAgentPlugin extends Plugin {
     this.statusBarItem.hide();
     this.renderStatusBar();
 
-    this.addRibbonIcon("bot", "Open Thought Agent", () => { void this.activateChatView(); });
+    this.addRibbonIcon("bot", "Open Thought Agent", () => {
+      void this.activateChatView();
+    });
 
     this.addCommand({
       id: "open-chat",
       name: "Open chat",
-      callback: () => { void this.activateChatView(); },
+      callback: () => {
+        void this.activateChatView();
+      },
     });
 
     this.addCommand({
@@ -382,17 +386,20 @@ export default class AIAgentPlugin extends Plugin {
   }
 
   private initExcalidraw(): void {
-    if (!this.excalidrawAdapter.isAvailable || !this.settings.excalidrawEnabled) {
-      console.debug('[ThoughtAgent] Excalidraw integration disabled.')
-      return
+    if (
+      !this.excalidrawAdapter.isAvailable ||
+      !this.settings.excalidrawEnabled
+    ) {
+      console.debug("[ThoughtAgent] Excalidraw integration disabled.");
+      return;
     }
-    console.debug('[ThoughtAgent] Excalidraw integration enabled.')
-    this.diagramIndexer = new DiagramIndexer(this.app, this.vectorStore)
-    this.diagramWatcher = new DiagramWatcher(this.app, this.diagramIndexer)
-    if (this.settings.diagramWatcherEnabled) this.diagramWatcher.register()
-    void this.diagramIndexer.reindexAll()
+    console.debug("[ThoughtAgent] Excalidraw integration enabled.");
+    this.diagramIndexer = new DiagramIndexer(this.app, this.vectorStore);
+    this.diagramWatcher = new DiagramWatcher(this.app, this.diagramIndexer);
+    if (this.settings.diagramWatcherEnabled) this.diagramWatcher.register();
+    void this.diagramIndexer.reindexAll();
     // Re-wire agent loop now that excalidraw is confirmed available
-    this.wireAgentLoop()
+    this.wireAgentLoop();
   }
 
   private registerActiveFileTracker(): void {
@@ -403,7 +410,8 @@ export default class AIAgentPlugin extends Plugin {
       if (
         this.session.activeFile?.path === activeFile.path &&
         this.session.activeFile?.content === activeFile.content
-      ) return;
+      )
+        return;
       this.session = { ...this.session, activeFile };
       this.getChatView()?.updateSession(this.session);
     };
@@ -415,12 +423,17 @@ export default class AIAgentPlugin extends Plugin {
     };
 
     this.registerEvent(
-      this.app.workspace.on("file-open", (file) => { void setActiveFile(file); }),
+      this.app.workspace.on("file-open", (file) => {
+        void setActiveFile(file);
+      }),
     );
 
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
-        if (!leaf) { clearActiveFile(); return; }
+        if (!leaf) {
+          clearActiveFile();
+          return;
+        }
         const viewType = leaf.view?.getViewType?.();
         if (viewType === "markdown") return;
         if (viewType === CHAT_VIEW_TYPE) return;
@@ -435,7 +448,8 @@ export default class AIAgentPlugin extends Plugin {
   wireAgentLoop(): void {
     const provider = this.buildProvider();
     if (!provider) return;
-    const excalidrawAvailable = this.excalidrawAdapter?.isAvailable && this.settings.excalidrawEnabled;
+    const excalidrawAvailable =
+      this.excalidrawAdapter?.isAvailable && this.settings.excalidrawEnabled;
     const executor = new ToolExecutor(
       this.app,
       this.vectorStore,
@@ -448,7 +462,12 @@ export default class AIAgentPlugin extends Plugin {
       this.settings.diagramDefaultFolder,
       this.settings.diagramEmbedStyle,
     );
-    const loop = new AgentLoop(provider, executor, this.settings.maxIterations, excalidrawAvailable);
+    const loop = new AgentLoop(
+      provider,
+      executor,
+      this.settings.maxIterations,
+      excalidrawAvailable,
+    );
     this.getChatView()?.setAgentLoop(loop);
   }
 
@@ -643,10 +662,6 @@ export default class AIAgentPlugin extends Plugin {
             type: "localgraph",
             active: true,
             state: { file: fallbackPath },
-          } as unknown as {
-            type: string;
-            active: boolean;
-            state: Record<string, unknown>;
           });
           void this.app.workspace.revealLeaf(localLeaf);
           new Notice("Opened local graph on top filtered match.");
@@ -655,10 +670,7 @@ export default class AIAgentPlugin extends Plugin {
       }
 
       const leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: "graph", active: true } as unknown as {
-        type: string;
-        active: boolean;
-      });
+      await leaf.setViewState({ type: "graph", active: true });
       void this.app.workspace.revealLeaf(leaf);
       return;
     }
@@ -697,10 +709,6 @@ export default class AIAgentPlugin extends Plugin {
         type: "localgraph",
         active: true,
         state: { file: notePath },
-      } as unknown as {
-        type: string;
-        active: boolean;
-        state: Record<string, unknown>;
       });
       void this.app.workspace.revealLeaf(localLeaf);
       return true;
@@ -710,10 +718,7 @@ export default class AIAgentPlugin extends Plugin {
 
     if (!openedLocal) {
       const leaf = this.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: "graph", active: true } as unknown as {
-        type: string;
-        active: boolean;
-      });
+      await leaf.setViewState({ type: "graph", active: true });
       void this.app.workspace.revealLeaf(leaf);
     }
 
