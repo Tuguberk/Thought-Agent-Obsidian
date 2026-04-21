@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: AIAgentSettings = {
   indexedChunksCount: 0,
   lastIndexedAt: null,
   excalidrawEnabled: true,
-  diagramDefaultFolder: '',
+  diagramDefaultFolder: 'Diagrams',
   diagramWatcherEnabled: true,
   diagramEmbedStyle: 'embed',
 }
@@ -254,7 +254,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName('Default diagram folder')
-        .setDesc('Folder for new diagrams created by the agent (leave empty for vault root).')
+        .setDesc('Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.')
         .addText(t => {
           t.setPlaceholder('e.g. Diagrams')
             .setValue(this.plugin.settings.diagramDefaultFolder)

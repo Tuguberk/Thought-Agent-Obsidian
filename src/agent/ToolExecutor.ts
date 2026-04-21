@@ -27,6 +27,7 @@ export interface GraphFilter {
 export class ToolExecutor {
   private diagramExtractor = new DiagramExtractor()
   private diagramLayoutEngine = new DiagramLayoutEngine()
+  private readonly fallbackDiagramFolder = 'Diagrams'
 
   constructor(
     private app: App,
@@ -37,6 +38,28 @@ export class ToolExecutor {
     private diagramDefaultFolder = '',
     private diagramEmbedStyle: 'embed' | 'link' = 'embed',
   ) {}
+
+  private normalizeFolderPath(folder?: string): string {
+    if (!folder) return ''
+    return folder
+      .trim()
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/\\+/g, '/')
+      .replace(/\/+/g, '/')
+  }
+
+  private resolveDiagramFolder(requestedFolder?: string): string {
+    const baseFolder = this.normalizeFolderPath(this.diagramDefaultFolder) || this.fallbackDiagramFolder
+    const requested = this.normalizeFolderPath(requestedFolder)
+
+    if (!requested) return baseFolder
+
+    if (requested === baseFolder || requested.startsWith(`${baseFolder}/`)) {
+      return requested
+    }
+
+    return `${baseFolder}/${requested}`
+  }
 
   private getBacklinkPaths(notePath: string): string[] {
     const resolvedLinks = (
@@ -665,7 +688,7 @@ export class ToolExecutor {
       nodes: (input.nodes as SpecNode[]) ?? [],
       edges: (input.edges as SpecEdge[]) ?? [],
     }
-    const folder = (input.folder as string | undefined) ?? this.diagramDefaultFolder
+    const folder = this.resolveDiagramFolder(input.folder as string | undefined)
     const fileName = `${spec.title.replace(/[/\\:*?"<>|]/g, '-')}.excalidraw`
     const filePath = folder ? `${folder.replace(/\/$/, '')}/${fileName}` : fileName
 

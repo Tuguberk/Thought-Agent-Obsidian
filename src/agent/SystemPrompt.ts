@@ -1,5 +1,5 @@
-import type { SessionContext } from './SessionContext'
-import { sessionContextToPrompt } from './SessionContext'
+import type { SessionContext } from "./SessionContext";
+import { sessionContextToPrompt } from "./SessionContext";
 
 const DIAGRAM_TOOLS_SECTION = `
 ## Diagram Tools (Excalidraw plugin is installed)
@@ -13,20 +13,24 @@ You can work with Excalidraw diagrams in the vault:
   - flowchart: for processes and decision trees
   - timeline: for chronological content
   - entity-graph: for relationships between concepts or people
+  - If the diagram is dense or requires precise placement, include optional \`x\` and \`y\` coordinates for each node.
 - Use \`update_diagram\` to add content to an existing diagram.
 - Use \`annotate_diagram\` to link a note and a diagram bidirectionally.
 
 When the user asks to "visualize", "map out", "diagram", "draw", "görselleştir", "şema", "harita", or "çiz" something, prefer \`create_diagram\`.
 When the user asks about a diagram file, use \`read_diagram\` first.
 Always go through the preview → approval flow. Never write diagrams directly.
-`
+`;
 
-export function buildSystemPrompt(session: SessionContext, excalidrawAvailable = false): string {
-  const constraintSection = sessionContextToPrompt(session)
+export function buildSystemPrompt(
+  session: SessionContext,
+  excalidrawAvailable = false,
+): string {
+  const constraintSection = sessionContextToPrompt(session);
 
   const activeFileHeader = session.activeFile
     ? `CURRENTLY OPEN NOTE: "${session.activeFile.path}"\nWhen the user says "this", "it", "the file", "bu", "bunu", "bunu", "bu dosya", or gives a vague command like "make it longer", "edit this", "detaylandır", "düzenle", "güncelle" — they mean THIS note. Act on it directly without asking for clarification.\n\n`
-    : ''
+    : "";
 
   return `${activeFileHeader}You are an AI knowledge assistant integrated into the user's Obsidian vault. Your job is to help them understand, navigate, and expand their personal knowledge graph.
 
@@ -72,6 +76,6 @@ If the session context shows an ACTIVE NOTE, use it as a strong contextual signa
 - General knowledge questions ("what do my notes say about X", "find notes tagged #Y") → ignore the active note and search the vault normally.
 - When in doubt, briefly confirm with one sentence: "I'll edit **<active note>** — is that correct?" before proceeding.
 
-${excalidrawAvailable ? DIAGRAM_TOOLS_SECTION : ''}
-${constraintSection ? `## Session constraints\n${constraintSection}\n` : ''}Treat the user's vault with care and respect their organizational choices.`
+${excalidrawAvailable ? DIAGRAM_TOOLS_SECTION : ""}
+${constraintSection ? `## Session constraints\n${constraintSection}\n` : ""}Treat the user's vault with care and respect their organizational choices.`;
 }

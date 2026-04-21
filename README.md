@@ -1,68 +1,102 @@
-# Thought Agent (Obsidian Plugin)
+# Thought Agent for Obsidian
 
-Thought Agent, Obsidian icin gelistirilmis bir AI eklentisidir.
-Notlarinla sohbet edebilir, bilgi grafini kullanarak baglam bulabilir ve yeni notlar olusturmaya yardimci olur.
+Thought Agent is an AI-powered Obsidian plugin designed to work with your notes, links, and diagrams as a single knowledge graph.
 
-## Ozellikler
+It helps you:
 
-- Obsidian notlariyla AI tabanli sohbet
-- Vektor + BM25 + grafik tabanli hibrit arama altyapisi
-- Excalidraw diyagramlarindan baglam cikarma
-- Farkli LLM saglayicilarini destekleyen provider yapisi
+- chat with your vault content,
+- discover related notes through semantic + graph search,
+- propose safe, preview-based edits,
+- create and update Excalidraw diagrams from structured intent.
 
-## Proje Yapisi
+## Visual Overview
 
-- `src/agent`: ajan dongusu, oturum baglami, tool calistirma
-- `src/retrieval`: indexleme, embedding, hibrit arama
-- `src/excalidraw`: diyagram cikarma ve indexleme
-- `src/views`: Obsidian UI panelleri
-- `main.js`, `manifest.json`, `styles.css`: Obsidian plugin cikti/metadata dosyalari
+```mermaid
+flowchart LR
+	U[User Prompt] --> A[Agent Loop]
+	A --> T[Tool Executor]
+	T --> R[Hybrid Retrieval\nVector + BM25 + Graph]
+	T --> V[Vault Operations\nCreate/Edit/Link Notes]
+	T --> D[Excalidraw Engine\nCreate/Update/Read Diagrams]
+	R --> C[Context Pack]
+	C --> A
+	A --> P[Preview & Approval]
+	P --> W[Write to Vault]
+```
 
-## Gereksinimler
+## Core Features
+
+- Hybrid retrieval pipeline: semantic vectors + BM25 keyword scoring + graph-enhanced reranking.
+- Safe write workflow: all note and diagram changes are proposed first, then approved by the user.
+- Excalidraw integration: read/search diagrams, generate new diagrams, and update existing ones.
+- Deterministic layout engine: stable node placement, edge anchoring from shape boundaries, and layered drawing order.
+- Session constraints: filter by tags/folders and apply custom instructions per session.
+- Multi-provider LLM support: Anthropic and OpenAI-compatible local endpoints (LM Studio).
+
+## Excalidraw Capabilities
+
+- Create diagram types: `mindmap`, `flowchart`, `timeline`, `entity-graph`.
+- Optional AI-provided `x`/`y` coordinates for precise placement.
+- Arrow routing anchored to node boundaries (rectangle/ellipse/diamond aware).
+- Rendering layer policy: connectors (`arrow`, `line`) stay behind text and shapes.
+- Diagram output path policy:
+	- all diagrams are created under the configured default diagram folder,
+	- if the setting is empty, `Diagrams` is used automatically,
+	- any requested folder is treated as a subfolder under that base.
+
+## Project Structure
+
+- `src/agent` - agent loop, system prompt, tool execution.
+- `src/retrieval` - chunking, embeddings, indexing, hybrid search.
+- `src/excalidraw` - diagram extraction, indexing, watching, layout engine.
+- `src/views` - chat, preview, and graph query views.
+- `src/providers` - LLM provider adapters.
+- `src/changes` - pending change model and apply flow.
+
+## Requirements
 
 - Node.js 18+
 - npm
-- Obsidian (Desktop)
+- Obsidian Desktop
+- Excalidraw Obsidian plugin (optional but required for diagram tools)
 
-## Kurulum
+## Development
+
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-## Gelistirme
+Start development build/watch:
 
 ```bash
 npm run dev
 ```
 
-## Build
+Run production build:
 
 ```bash
 npm run build
 ```
 
-## GitHub'a Gonderme (Elle)
+## Configuration
 
-Asagidaki komutlari proje kokunde calistir:
+Open Obsidian settings for Thought Agent and configure:
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/<kullanici-adi>/<repo-adi>.git
-git push -u origin main
-```
+- provider (`anthropic` or `lmstudio`),
+- model and endpoint details,
+- max agent iterations,
+- diagram defaults (folder, watcher, embed style).
 
-Eger remote zaten varsa:
+## Suggested Workflow
 
-```bash
-git remote set-url origin https://github.com/<kullanici-adi>/<repo-adi>.git
-git push -u origin main
-```
+1. Re-index your vault.
+2. Ask a question in chat.
+3. Let the agent search notes and gather context.
+4. Review proposed edits/diagrams in Preview.
+5. Approve only what you want written.
 
-## Notlar
+## License
 
-- `.gitignore` dosyasinda `vectors.json` ve `data.json` lokal uretilen veri olarak ignore edilir.
-- Paket lisansi `MIT` olarak ayarlidir (`package.json`).
+MIT
