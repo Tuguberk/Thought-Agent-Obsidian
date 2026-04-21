@@ -2,7 +2,7 @@
 
 # 🧠 Thought Agent
 
-### *Your vault doesn't just store knowledge — it thinks with you.*
+### *Your vault doesn't just store knowledge, it thinks with you.*
 
 **An AI-powered Obsidian plugin that treats your notes, links, and diagrams as a living knowledge graph.**
 
@@ -18,7 +18,7 @@
 
 ## ✦ What is Thought Agent?
 
-Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous reasoning agent** that navigates your vault like a researcher — searching semantically, traversing graph links, proposing safe edits, and generating visual diagrams — all without touching a single file until *you* approve.
+Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous reasoning agent** that navigates your vault like a researcher, searching semantically, traversing graph links, proposing safe edits, and generating visual diagrams, all without touching a single file until *you* approve.
 
 > *"Think of it as a second brain for your second brain."*
 
@@ -26,7 +26,7 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 
 ## 📦 Installation
 
-### Option 1 — BRAT (recommended for early adopters)
+### Option 1, BRAT (recommended for early adopters)
 
 [BRAT](https://github.com/TfTHacker/obsidian42-brat) lets you install plugins directly from GitHub without waiting for the official Obsidian store.
 
@@ -36,12 +36,12 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
    ```
    https://github.com/tugberkakbulut/thought-obsidian
    ```
-4. Click **Add Plugin** — BRAT downloads and enables it automatically.
+4. Click **Add Plugin**, BRAT downloads and enables it automatically.
 5. Go to **Settings → Community Plugins** and toggle **Thought Agent** on.
 
 ---
 
-### Option 2 — Manual installation
+### Option 2, Manual installation
 
 1. Go to the [**Releases**](https://github.com/tugberkakbulut/thought-obsidian/releases) page and download the latest:
    - `main.js`
@@ -56,7 +56,7 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 
 ---
 
-### Option 3 — Build from source
+### Option 3, Build from source
 
 ```bash
 # Clone into your vault's plugins folder
@@ -74,31 +74,31 @@ Then enable the plugin in Obsidian as above.
 
 ## 🚀 Quick Start
 
-### Step 1 — Configure a provider
+### Step 1, Configure a provider
 
 Open **Obsidian → Settings → Thought Agent** and pick your LLM provider:
 
 **Using Anthropic (Claude):**
 - Set **Provider** → `Anthropic`
 - Paste your [Anthropic API key](https://console.anthropic.com/) (`sk-ant-...`)
-- Select a model — **Claude Sonnet 4.6** is recommended for the best balance of speed and power
+- Select a model, **Claude Sonnet 4.6** is recommended for the best balance of speed and power
 
 **Using a local model (LM Studio):**
 - Download and open [LM Studio](https://lmstudio.ai), load any model, and start the local server
 - Set **Provider** → `LM Studio`
-- Default URL is `http://localhost:1234/v1` — hit **Test** to confirm it's reachable
+- Default URL is `http://localhost:1234/v1`, hit **Test** to confirm it's reachable
 - Your prompts never leave your machine 🔒
 
 ---
 
-### Step 2 — Index your vault
+### Step 2, Index your vault
 
 In **Settings → Thought Agent**, click **Re-index vault**.  
 This builds the local semantic index (~25 MB model download on first run). You only need to do this once, and again after adding many new notes.
 
 ---
 
-### Step 3 — Open the chat
+### Step 3, Open the chat
 
 Click the **🧠 Thought Agent** icon in the left sidebar (or run *"Open Thought Agent chat"* from the Command Palette).
 
@@ -114,10 +114,10 @@ Click the **🧠 Thought Agent** icon in the left sidebar (or run *"Open Thought
 
 ---
 
-### Step 4 — Review & approve changes
+### Step 4, Review & approve changes
 
 The agent will **never write to your vault without showing you a preview first**.  
-Every proposed note creation, edit, and diagram goes through a diff view — approve or reject each change individually.
+Every proposed note creation, edit, and diagram goes through a diff view, approve or reject each change individually.
 
 ---
 
@@ -199,7 +199,7 @@ flowchart LR
     B --> F
 
     F --> GR["🕸️ Graph Re-ranking\nBoost linked neighbors\nof top results"]
-    GR --> MM["📊 MMR Filtering\nMaximal Marginal\nRelevance — diversity"]
+    GR --> MM["📊 MMR Filtering\nMaximal Marginal\nRelevance, diversity"]
     MM --> CTX["📦 Context Pack\nTop-K unique chunks\nwith note metadata"]
 
     style Q fill:#7c3aed,color:#fff,stroke:none
@@ -232,7 +232,7 @@ sequenceDiagram
 
 ## 🎨 Excalidraw Integration
 
-Generate, update, and search visual diagrams — directly from natural language.
+Generate, update, and search visual diagrams, directly from natural language.
 
 ```mermaid
 flowchart TD
@@ -422,7 +422,7 @@ Open **Obsidian → Settings → Thought Agent** and configure:
 
 - **No telemetry.** Zero data sent anywhere except your chosen LLM provider.
 - **Vault-local embeddings.** Transformers.js runs entirely in-process; note text never leaves your machine for embeddings.
-- **LM Studio mode.** If you use a local model, your prompts never leave your computer — period.
+- **LM Studio mode.** If you use a local model, your prompts never leave your computer, period.
 - **Approval gate.** Every proposed write requires explicit user confirmation.
 
 ---
