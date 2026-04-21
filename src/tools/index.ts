@@ -1,0 +1,302 @@
+import type { Tool } from '../providers/LLMProvider'
+
+export const DIAGRAM_TOOLS: Tool[] = [
+  {
+    name: 'read_diagram',
+    description: 'Read and extract structured content (nodes, edges, text) from an Excalidraw file.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: 'Path to the .excalidraw file (e.g. "Diagrams/mindmap.excalidraw")' },
+      },
+      required: ['filePath'],
+    },
+  },
+  {
+    name: 'search_diagrams',
+    description: 'Search the diagram index semantically. Returns matching diagrams with summaries.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        topK: { type: 'number', description: 'Number of results (default: 3)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'create_diagram',
+    description: 'Generate a new Excalidraw diagram from a semantic structure. Opens a preview for approval. Types: mindmap (hierarchical), flowchart (process/decisions), timeline (chronological), entity-graph (relationships).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['mindmap', 'flowchart', 'timeline', 'entity-graph'], description: 'Diagram type' },
+        title: { type: 'string', description: 'Diagram title (used as filename)' },
+        folder: { type: 'string', description: 'Vault folder to save in (optional)' },
+        nodes: {
+          type: 'array',
+          description: 'Nodes in the diagram',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              label: { type: 'string' },
+              level: { type: 'number', description: 'For mindmap: 0=root, 1=branch, 2=leaf' },
+              shape: { type: 'string', enum: ['rect', 'ellipse', 'diamond'] },
+              timestamp: { type: 'string', description: 'For timeline: ISO date or year string' },
+            },
+            required: ['id', 'label'],
+          },
+        },
+        edges: {
+          type: 'array',
+          description: 'Connections between nodes',
+          items: {
+            type: 'object',
+            properties: {
+              from: { type: 'string', description: 'Source node id' },
+              to: { type: 'string', description: 'Target node id' },
+              label: { type: 'string', description: 'Edge label (optional)' },
+            },
+            required: ['from', 'to'],
+          },
+        },
+      },
+      required: ['type', 'title', 'nodes', 'edges'],
+    },
+  },
+  {
+    name: 'update_diagram',
+    description: 'Add nodes/edges or update labels in an existing Excalidraw diagram. Opens a preview for approval.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: 'Path to the .excalidraw file' },
+        addNodes: {
+          type: 'array',
+          description: 'New nodes to add',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              label: { type: 'string' },
+              shape: { type: 'string', enum: ['rect', 'ellipse', 'diamond'] },
+            },
+            required: ['id', 'label'],
+          },
+        },
+        addEdges: {
+          type: 'array',
+          description: 'New edges to add',
+          items: {
+            type: 'object',
+            properties: {
+              from: { type: 'string' },
+              to: { type: 'string' },
+              label: { type: 'string' },
+            },
+            required: ['from', 'to'],
+          },
+        },
+        updateLabels: {
+          type: 'array',
+          description: 'Label updates for existing nodes',
+          items: {
+            type: 'object',
+            properties: {
+              nodeId: { type: 'string' },
+              newLabel: { type: 'string' },
+            },
+            required: ['nodeId', 'newLabel'],
+          },
+        },
+      },
+      required: ['filePath'],
+    },
+  },
+  {
+    name: 'annotate_diagram',
+    description: 'Link an existing note and an Excalidraw diagram bidirectionally. Opens a preview for approval.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        diagramPath: { type: 'string', description: 'Path to the .excalidraw file' },
+        notePath: { type: 'string', description: 'Path to the note (.md file)' },
+        annotationText: { type: 'string', description: 'Optional text to add to the note' },
+      },
+      required: ['diagramPath', 'notePath'],
+    },
+  },
+]
+
+export function getTools(excalidrawAvailable: boolean): Tool[] {
+  return excalidrawAvailable ? [...ALL_TOOLS, ...DIAGRAM_TOOLS] : ALL_TOOLS
+}
+
+export const ALL_TOOLS: Tool[] = [
+  {
+    name: 'search_notes',
+    description: 'Search the vault semantically and lexically. Returns ranked chunks with note paths, headings, and content snippets. Use this as the first step to find relevant information.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'The search query' },
+        topK: { type: 'number', description: 'Number of results to return (default: 8)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'get_note',
+    description: 'Get the full content of a specific note by its path. Use after search_notes to read complete notes.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        notePath: { type: 'string', description: 'The vault path to the note (e.g. "Folder/Note.md")' },
+      },
+      required: ['notePath'],
+    },
+  },
+  {
+    name: 'get_neighbors',
+    description: 'Get notes that are linked to or from the given note (graph neighbors). Useful for exploring connected concepts.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        notePath: { type: 'string', description: 'Path of the note to expand' },
+        depth: { type: 'number', description: 'Link traversal depth (default: 1)' },
+      },
+      required: ['notePath'],
+    },
+  },
+  {
+    name: 'get_backlinks',
+    description: 'Get all notes that link to the given note, with the link context (surrounding text snippet).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        notePath: { type: 'string', description: 'Path of the target note' },
+      },
+      required: ['notePath'],
+    },
+  },
+  {
+    name: 'query_graph',
+    description: 'Query and visualize a filtered subgraph. Opens a visual graph view in a new tab. Returns a list of matching nodes and edges.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        filter: {
+          type: 'object',
+          description: 'Filter criteria for the subgraph',
+          properties: {
+            tags: { type: 'array', items: { type: 'string' }, description: 'Filter by tags' },
+            folders: { type: 'array', items: { type: 'string' }, description: 'Filter by folder paths' },
+            linkedTo: { type: 'string', description: 'Only include notes linked to this path' },
+            query: { type: 'string', description: 'Semantic search query to filter nodes' },
+          },
+        },
+      },
+      required: ['filter'],
+    },
+  },
+  {
+    name: 'create_note',
+    description: 'Propose creating a new note. Opens a preview for user approval before writing to disk.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Title of the new note' },
+        content: { type: 'string', description: 'Full markdown content of the note' },
+        folder: { type: 'string', description: 'Folder path (optional, e.g. "Research/")' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Tags to add in frontmatter' },
+        linksTo: { type: 'array', items: { type: 'string' }, description: 'Note paths to link to' },
+      },
+      required: ['title', 'content'],
+    },
+  },
+  {
+    name: 'edit_note',
+    description: 'Propose editing an existing note. Opens a diff preview for user approval before writing to disk.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        notePath: { type: 'string', description: 'Path of the note to edit' },
+        newContent: { type: 'string', description: 'The complete new content for the note' },
+      },
+      required: ['notePath', 'newContent'],
+    },
+  },
+  {
+    name: 'link_notes',
+    description: 'Propose adding a wikilink from one note to another. Opens a preview for user approval.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'Source note path (the note that will contain the link)' },
+        to: { type: 'string', description: 'Target note path' },
+        linkText: { type: 'string', description: 'Display text for the link (optional)' },
+        insertionPoint: {
+          type: 'string',
+          enum: ['end', 'beginning'],
+          description: 'Where to insert the link (default: end)',
+        },
+      },
+      required: ['from', 'to'],
+    },
+  },
+  {
+    name: 'reorganize',
+    description: 'Propose a multi-step vault reorganization (creates, edits, links). Opens an expandable preview for user to approve/reject individual steps.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        description: { type: 'string', description: 'Description of the reorganization plan' },
+        steps: {
+          type: 'array',
+          description: 'List of individual changes in the reorganization',
+          items: {
+            type: 'object',
+            properties: {
+              action: { type: 'string', enum: ['create', 'edit', 'link'], description: 'Type of change' },
+              notePath: { type: 'string' },
+              title: { type: 'string' },
+              content: { type: 'string' },
+              folder: { type: 'string' },
+              from: { type: 'string' },
+              to: { type: 'string' },
+            },
+            required: ['action'],
+          },
+        },
+      },
+      required: ['description', 'steps'],
+    },
+  },
+  {
+    name: 'set_session_constraint',
+    description: 'Set session-level filters that constrain what notes the agent looks at. Call with null values to clear constraints.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        tagFilter: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Only look at notes with these tags. Pass null to clear.',
+          nullable: true,
+        },
+        folderFilter: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Only look at notes in these folders. Pass null to clear.',
+          nullable: true,
+        },
+        customInstructions: {
+          type: 'string',
+          description: 'Custom instructions for this session. Pass null to clear.',
+          nullable: true,
+        },
+      },
+    },
+  },
+]

@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build cache
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Local generated data
+vectors.json
+data.json
+
+# Optional local editor settings
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

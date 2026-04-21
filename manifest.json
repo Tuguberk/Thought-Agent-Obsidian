@@ -1,0 +1,11 @@
+{
+  "id": "obsidian-ai-agent",
+  "name": "Thought Agent",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "An AI agent that can converse with your notes, manipulate the knowledge graph, and create new notes.",
+  "author": "Tugberk Akbulut",
+  "authorUrl": "",
+  "fundingUrl": "",
+  "isDesktopOnly": true
+}
