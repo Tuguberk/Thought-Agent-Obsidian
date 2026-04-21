@@ -171,7 +171,7 @@ export class ChatView extends ItemView {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         if (this.abortController) this.stop();
-        else this.sendMessage();
+        else void this.sendMessage();
       }
     });
 
@@ -327,11 +327,11 @@ export class ChatView extends ItemView {
     }
 
     if (chips.length === 0) {
-      this.sessionBadgeEl.style.display = "none";
+      this.sessionBadgeEl.hide();
       return;
     }
 
-    this.sessionBadgeEl.style.display = "flex";
+    this.sessionBadgeEl.show();
     for (const chip of chips) {
       const el = this.sessionBadgeEl.createDiv("ai-context-chip");
       el.createEl("span", { text: chip.icon, cls: "ai-context-chip-icon" });
@@ -553,12 +553,12 @@ export class ChatView extends ItemView {
           },
 
           onPendingChange: (change) => {
-            if (!this.stopped) this.plugin.openPreviewView(change);
+            if (!this.stopped) void this.plugin.openPreviewView(change);
           },
 
           onGraphQuery: (filter) => {
             if (!this.stopped)
-              this.plugin.openGraphView(
+              void this.plugin.openGraphView(
                 filter as {
                   tags?: string[];
                   folders?: string[];

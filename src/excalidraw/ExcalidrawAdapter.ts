@@ -42,24 +42,24 @@ export class ExcalidrawAdapter {
 
   async getElementsFromFile(filePath: string): Promise<ExcalidrawElement[]> {
     const file = this.app.vault.getAbstractFileByPath(filePath)
-    if (!file) throw new Error(`File not found: ${filePath}`)
-    const content = await this.app.vault.read(file as TFile)
+    if (!file || !(file instanceof TFile)) throw new Error(`File not found: ${filePath}`)
+    const content = await this.app.vault.read(file)
     const parsed: ExcalidrawFile = JSON.parse(content)
     return parsed.elements ?? []
   }
 
   async readFile(filePath: string): Promise<ExcalidrawFile> {
     const file = this.app.vault.getAbstractFileByPath(filePath)
-    if (!file) throw new Error(`File not found: ${filePath}`)
-    const content = await this.app.vault.read(file as TFile)
+    if (!file || !(file instanceof TFile)) throw new Error(`File not found: ${filePath}`)
+    const content = await this.app.vault.read(file)
     return JSON.parse(content) as ExcalidrawFile
   }
 
   async writeFile(filePath: string, content: ExcalidrawFile): Promise<void> {
     const json = JSON.stringify(content, null, 2)
     const existing = this.app.vault.getAbstractFileByPath(filePath)
-    if (existing) {
-      await this.app.vault.modify(existing as TFile, json)
+    if (existing instanceof TFile) {
+      await this.app.vault.modify(existing, json)
     } else {
       const parts = filePath.split('/')
       if (parts.length > 1) {

@@ -33,7 +33,7 @@ export class GraphQueryView extends ItemView {
   }
 
   getDisplayText(): string {
-    return 'AI Graph View'
+    return 'AI graph view'
   }
 
   getIcon(): string {
@@ -48,8 +48,9 @@ export class GraphQueryView extends ItemView {
     this.renderGraph()
   }
 
-  async onOpen(): Promise<void> {
+  onOpen(): Promise<void> {
     this.buildUI()
+    return Promise.resolve()
   }
 
   onClose(): Promise<void> {
@@ -207,7 +208,7 @@ export class GraphQueryView extends ItemView {
       if (Math.sqrt(dx * dx + dy * dy) < 12) {
         const file = this.app.vault.getFileByPath(node.id)
         if (file) {
-          this.app.workspace.openLinkText(node.id, '', false)
+          void this.app.workspace.openLinkText(node.id, '', false)
         }
         break
       }

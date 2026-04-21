@@ -26,7 +26,7 @@ export class AnthropicProvider implements LLMProvider {
     systemPrompt: string,
   ): Promise<LLMResponse> {
     const anthropicMessages = messages.map((m) => ({
-      role: m.role as "user" | "assistant",
+      role: m.role,
       content: m.content,
     })) as unknown as Anthropic.MessageParam[];
 
@@ -55,14 +55,14 @@ export class AnthropicProvider implements LLMProvider {
       thinking?: string;
     }>) {
       if (block.type === "text" && typeof block.text === "string") {
-        content.push({ type: "text" as const, text: block.text });
+        content.push({ type: "text", text: block.text });
       } else if (
         block.type === "tool_use" &&
         typeof block.id === "string" &&
         typeof block.name === "string"
       ) {
         content.push({
-          type: "tool_use" as const,
+          type: "tool_use",
           id: block.id,
           name: block.name,
           input: (block.input ?? {}) as Record<string, unknown>,
@@ -90,7 +90,7 @@ export class AnthropicProvider implements LLMProvider {
     onToolUse: (name: string, id: string) => void,
   ): Promise<LLMResponse> {
     const anthropicMessages = messages.map((m) => ({
-      role: m.role as "user" | "assistant",
+      role: m.role,
       content: m.content,
     })) as unknown as Anthropic.MessageParam[];
 
@@ -124,10 +124,10 @@ export class AnthropicProvider implements LLMProvider {
     const content: ContentBlock[] = [];
     for (const block of final.content) {
       if (block.type === "text") {
-        content.push({ type: "text" as const, text: block.text });
+        content.push({ type: "text", text: block.text });
       } else if (block.type === "tool_use") {
         content.push({
-          type: "tool_use" as const,
+          type: "tool_use",
           id: block.id,
           name: block.name,
           input: block.input as Record<string, unknown>,

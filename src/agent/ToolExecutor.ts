@@ -224,9 +224,9 @@ export class ToolExecutor {
     };
   }
 
-  private async getNeighbors(
+  private getNeighbors(
     input: Record<string, unknown>,
-  ): Promise<ToolResult> {
+  ): ToolResult {
     const notePath = input.notePath as string;
     const depth = (input.depth as number) ?? 1;
 
@@ -296,9 +296,9 @@ export class ToolExecutor {
     return { content: JSON.stringify(neighbors, null, 2) };
   }
 
-  private async getBacklinks(
+  private getBacklinks(
     input: Record<string, unknown>,
-  ): Promise<ToolResult> {
+  ): ToolResult {
     const notePath = input.notePath as string;
     const file = this.app.vault.getFileByPath(notePath);
     if (!file || !(file instanceof TFile))
@@ -642,8 +642,8 @@ export class ToolExecutor {
     const filePath = input.filePath as string
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath)
-      if (!file) return { content: `Diagram not found: ${filePath}` }
-      const content = await this.app.vault.read(file as TFile)
+      if (!file || !(file instanceof TFile)) return { content: `Diagram not found: ${filePath}` }
+      const content = await this.app.vault.read(file)
       const extracted = this.diagramExtractor.extract(filePath, content)
       return {
         content: JSON.stringify({
@@ -680,7 +680,7 @@ export class ToolExecutor {
     }
   }
 
-  private async createDiagram(input: Record<string, unknown>): Promise<ToolResult> {
+  private createDiagram(input: Record<string, unknown>): ToolResult {
     if (!this.excalidraw) return { content: 'Excalidraw plugin is not installed.' }
     const spec: DiagramSpec = {
       type: input.type as DiagramSpec['type'],
@@ -795,9 +795,9 @@ export class ToolExecutor {
     const maxX = diagramEls.reduce((m, e) => Math.max(m, e.x + e.width), 600)
     const maxY = diagramEls.reduce((m, e) => Math.max(m, e.y + e.height), 400)
 
-    const diagramAddition = {
+    const diagramAddition: ExcalidrawElement = {
       id: `annotation_${Date.now()}`,
-      type: 'text' as const,
+      type: 'text',
       x: maxX + 20, y: maxY + 20,
       width: 200, height: 30,
       text: `→ [[${noteName}]]`,

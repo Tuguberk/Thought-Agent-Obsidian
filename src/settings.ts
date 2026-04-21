@@ -49,7 +49,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
     const { containerEl } = this
     containerEl.empty()
 
-    containerEl.createEl('h2', { text: 'Thought Agent Settings' })
+    new Setting(containerEl).setName('Thought Agent settings').setHeading()
 
     // --- Provider selector ---
     new Setting(containerEl)
@@ -68,10 +68,10 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
     // --- Anthropic section ---
     if (this.plugin.settings.provider === 'anthropic') {
-      containerEl.createEl('h3', { text: 'Anthropic' })
+      new Setting(containerEl).setName('Anthropic').setHeading()
 
       new Setting(containerEl)
-        .setName('API Key')
+        .setName('API key')
         .setDesc('Your Anthropic API key (stored securely in plugin data)')
         .addText(text => {
           text
@@ -101,7 +101,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
     // --- LM Studio section ---
     if (this.plugin.settings.provider === 'lmstudio') {
-      containerEl.createEl('h3', { text: 'LM Studio' })
+      new Setting(containerEl).setName('LM Studio').setHeading()
 
       new Setting(containerEl)
         .setName('Base URL')
@@ -170,7 +170,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
     }
 
     // --- Shared ---
-    containerEl.createEl('h3', { text: 'Agent' })
+    new Setting(containerEl).setName('Agent').setHeading()
 
     new Setting(containerEl)
       .setName('Max iterations')
@@ -186,7 +186,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
           })
       })
 
-    containerEl.createEl('h3', { text: 'Embeddings' })
+    new Setting(containerEl).setName('Embeddings').setHeading()
 
     new Setting(containerEl)
       .setName('Embedding model')
@@ -200,7 +200,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
         })
       })
 
-    containerEl.createEl('h3', { text: 'Index status' })
+    new Setting(containerEl).setName('Index status').setHeading()
 
     const statusEl = containerEl.createDiv('index-status')
     const lastIndexed = this.plugin.settings.lastIndexedAt
@@ -229,7 +229,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
       })
 
     // --- Excalidraw Integration ---
-    containerEl.createEl('h3', { text: 'Excalidraw Integration' })
+    new Setting(containerEl).setName('Excalidraw integration').setHeading()
 
     const excalidrawAvailable = (this.plugin as unknown as { excalidrawAdapter?: { isAvailable: boolean } }).excalidrawAdapter?.isAvailable ?? false
     const excalidrawStatusEl = containerEl.createEl('p', {
@@ -238,7 +238,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
         : '⚠️ Excalidraw plugin not found — diagram features disabled.',
       cls: 'ai-preview-meta',
     })
-    statusEl.style.marginBottom = '8px'
+    statusEl.addClass('index-status-section')
 
     if (excalidrawAvailable) {
       new Setting(containerEl)
