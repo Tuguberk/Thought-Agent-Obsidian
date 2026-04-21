@@ -99,7 +99,9 @@ export class ChatView extends ItemView {
       this.modelMenuEl.empty();
 
       for (const model of models) {
-        const item = this.modelMenuEl.createEl("button", { cls: "ai-menu-item" });
+        const item = this.modelMenuEl.createEl("button", {
+          cls: "ai-menu-item",
+        });
         const row = item.createDiv("ai-menu-item-row");
         row.createEl("span", { text: model, cls: "ai-menu-label" });
         const checkEl = row.createSpan("ai-menu-check");
@@ -164,7 +166,7 @@ export class ChatView extends ItemView {
     this.refreshSessionBadge();
 
     this.inputEl = composer.createEl("textarea", {
-      attr: { placeholder: "Notlarınla ilgili isteğini yaz...", rows: "3" },
+      attr: { placeholder: "Write about your notes...", rows: "3" },
       cls: "ai-chat-input",
     });
     this.inputEl.addEventListener("keydown", (e) => {
@@ -228,7 +230,7 @@ export class ChatView extends ItemView {
     this.sendBtn.textContent = "↑";
     this.sendBtn.onclick = () => {
       if (this.abortController) this.stop();
-      else this.sendMessage();
+      else void this.sendMessage();
     };
 
     this.renderWelcome();
@@ -248,7 +250,8 @@ export class ChatView extends ItemView {
       const modeInside =
         this.modeMenuBtn?.contains(target) || this.modeMenuEl?.contains(target);
       const modelInside =
-        this.modelMenuBtn?.contains(target) || this.modelMenuEl?.contains(target);
+        this.modelMenuBtn?.contains(target) ||
+        this.modelMenuEl?.contains(target);
       if (!modeInside && !modelInside) this.closeMenus();
     };
     document.addEventListener("mousedown", outsideHandler);
@@ -280,7 +283,12 @@ export class ChatView extends ItemView {
   private newChat(): void {
     this.stop();
     this.history = [];
-    this.session = { ...this.session, tagFilter: null, folderFilter: null, customInstructions: null };
+    this.session = {
+      ...this.session,
+      tagFilter: null,
+      folderFilter: null,
+      customInstructions: null,
+    };
     this.messagesEl.empty();
     this.renderWelcome();
     this.inputEl.value = "";
@@ -295,7 +303,9 @@ export class ChatView extends ItemView {
     const chips: { icon: string; label: string; onClear?: () => void }[] = [];
 
     if (ctx.activeFile) {
-      const name = ctx.activeFile.path.split("/").pop()?.replace(/\.md$/, "") ?? ctx.activeFile.path;
+      const name =
+        ctx.activeFile.path.split("/").pop()?.replace(/\.md$/, "") ??
+        ctx.activeFile.path;
       chips.push({
         icon: "📄",
         label: name,
@@ -337,8 +347,14 @@ export class ChatView extends ItemView {
       el.createEl("span", { text: chip.icon, cls: "ai-context-chip-icon" });
       el.createEl("span", { text: chip.label, cls: "ai-context-chip-label" });
       if (chip.onClear) {
-        const x = el.createEl("button", { text: "×", cls: "ai-context-chip-clear" });
-        x.onclick = (e) => { e.stopPropagation(); chip.onClear!(); };
+        const x = el.createEl("button", {
+          text: "×",
+          cls: "ai-context-chip-clear",
+        });
+        x.onclick = (e) => {
+          e.stopPropagation();
+          chip.onClear!();
+        };
       }
     }
   }
@@ -347,7 +363,9 @@ export class ChatView extends ItemView {
     const text = this.inputEl.value.trim();
     if (!text || !this.agentLoop) {
       if (!this.agentLoop)
-        new Notice("Thought Agent not initialized. Check your API key in settings.");
+        new Notice(
+          "Thought Agent not initialized. Check your API key in settings.",
+        );
       return;
     }
 
@@ -558,14 +576,7 @@ export class ChatView extends ItemView {
 
           onGraphQuery: (filter) => {
             if (!this.stopped)
-              void this.plugin.openGraphView(
-                filter as {
-                  tags?: string[];
-                  folders?: string[];
-                  linkedTo?: string;
-                  query?: string;
-                },
-              );
+              void this.plugin.openGraphView(filter);
           },
         },
       );

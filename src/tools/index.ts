@@ -46,9 +46,10 @@ export const DIAGRAM_TOOLS: Tool[] = [
           type: "string",
           description: "Diagram title (used as filename)",
         },
-          folder: {
-            type: "string",
-            description: "Optional subfolder under the default diagram folder from settings",
+        folder: {
+          type: "string",
+          description:
+            "Optional subfolder under the default diagram folder from settings",
         },
         nodes: {
           type: "array",

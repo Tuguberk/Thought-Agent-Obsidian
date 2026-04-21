@@ -78,7 +78,10 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         text.inputEl.type = "password";
       });
       new import_obsidian.Setting(containerEl).setName("Model").setDesc("Claude model to use").addDropdown((drop) => {
-        drop.addOption("claude-sonnet-4-6", "Claude Sonnet 4.6 (recommended)");
+        drop.addOption(
+          "claude-sonnet-4-6",
+          "Claude Sonnet 4.6 (recommended)"
+        );
         drop.addOption("claude-opus-4-7", "Claude Opus 4.7");
         drop.addOption("claude-haiku-4-5-20251001", "Claude Haiku 4.5");
         drop.setValue(this.plugin.settings.model);
@@ -90,19 +93,25 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     }
     if (this.plugin.settings.provider === "lmstudio") {
       new import_obsidian.Setting(containerEl).setName("LM Studio").setHeading();
-      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc("LM Studio local server URL (default: http://localhost:1234/v1)").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc(
+        "LM Studio local server URL (default: http://localhost:1234/v1)"
+      ).addText((text) => {
         text.setPlaceholder("http://localhost:1234/v1").setValue(this.plugin.settings.lmstudioBaseUrl).onChange(async (value) => {
           this.plugin.settings.lmstudioBaseUrl = value.replace(/\/$/, "");
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Model name").setDesc("The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Model name").setDesc(
+        "The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)"
+      ).addText((text) => {
         text.setPlaceholder("leave empty to use loaded model").setValue(this.plugin.settings.lmstudioModel).onChange(async (value) => {
           this.plugin.settings.lmstudioModel = value;
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Max tokens").setDesc("Maximum tokens per response (default: 16384). Increase if notes are being cut off.").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Max tokens").setDesc(
+        "Maximum tokens per response (default: 16384). Increase if notes are being cut off."
+      ).addText((text) => {
         text.setPlaceholder("16384").setValue(String(this.plugin.settings.lmstudioMaxTokens)).onChange(async (value) => {
           const n = parseInt(value);
           if (!isNaN(n) && n > 0) {
@@ -122,7 +131,9 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
             if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
             const data = res.json;
             const models = data.data.map((m) => m.id).join(", ");
-            new import_obsidian.Notice(`LM Studio connected. Models: ${models || "(none loaded)"}`);
+            new import_obsidian.Notice(
+              `LM Studio connected. Models: ${models || "(none loaded)"}`
+            );
           } catch (e) {
             new import_obsidian.Notice(`Cannot reach LM Studio: ${e.message}`);
           } finally {
@@ -175,14 +186,18 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     });
     statusEl.addClass("index-status-section");
     if (excalidrawAvailable) {
-      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc("Re-index .excalidraw files when they change (no LLM calls, no tokens consumed).").addToggle((t) => {
+      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc(
+        "Re-index .excalidraw files when they change (no LLM calls, no tokens consumed)."
+      ).addToggle((t) => {
         t.setValue(this.plugin.settings.diagramWatcherEnabled);
         t.onChange(async (v) => {
           this.plugin.settings.diagramWatcherEnabled = v;
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc('Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.').addText((t) => {
+      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc(
+        'Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.'
+      ).addText((t) => {
         t.setPlaceholder("e.g. Diagrams").setValue(this.plugin.settings.diagramDefaultFolder).onChange(async (v) => {
           this.plugin.settings.diagramDefaultFolder = v;
           await this.plugin.saveSettings();
@@ -311,7 +326,9 @@ var ChatView = class extends import_obsidian2.ItemView {
       const activeModel = this.plugin.getActiveModel();
       this.modelMenuEl.empty();
       for (const model of models) {
-        const item = this.modelMenuEl.createEl("button", { cls: "ai-menu-item" });
+        const item = this.modelMenuEl.createEl("button", {
+          cls: "ai-menu-item"
+        });
         const row = item.createDiv("ai-menu-item-row");
         row.createEl("span", { text: model, cls: "ai-menu-label" });
         const checkEl = row.createSpan("ai-menu-check");
@@ -369,7 +386,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     this.sessionBadgeEl = composer.createDiv("ai-composer-context");
     this.refreshSessionBadge();
     this.inputEl = composer.createEl("textarea", {
-      attr: { placeholder: "Notlar\u0131nla ilgili iste\u011Fini yaz...", rows: "3" },
+      attr: { placeholder: "Write about your notes...", rows: "3" },
       cls: "ai-chat-input"
     });
     this.inputEl.addEventListener("keydown", (e) => {
@@ -429,7 +446,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     this.sendBtn.textContent = "\u2191";
     this.sendBtn.onclick = () => {
       if (this.abortController) this.stop();
-      else this.sendMessage();
+      else void this.sendMessage();
     };
     this.renderWelcome();
     await this.refreshModelMenu();
@@ -472,7 +489,12 @@ var ChatView = class extends import_obsidian2.ItemView {
   newChat() {
     this.stop();
     this.history = [];
-    this.session = { ...this.session, tagFilter: null, folderFilter: null, customInstructions: null };
+    this.session = {
+      ...this.session,
+      tagFilter: null,
+      folderFilter: null,
+      customInstructions: null
+    };
     this.messagesEl.empty();
     this.renderWelcome();
     this.inputEl.value = "";
@@ -525,7 +547,10 @@ var ChatView = class extends import_obsidian2.ItemView {
       el.createEl("span", { text: chip.icon, cls: "ai-context-chip-icon" });
       el.createEl("span", { text: chip.label, cls: "ai-context-chip-label" });
       if (chip.onClear) {
-        const x = el.createEl("button", { text: "\xD7", cls: "ai-context-chip-clear" });
+        const x = el.createEl("button", {
+          text: "\xD7",
+          cls: "ai-context-chip-clear"
+        });
         x.onclick = (e) => {
           e.stopPropagation();
           chip.onClear();
@@ -537,7 +562,9 @@ var ChatView = class extends import_obsidian2.ItemView {
     const text = this.inputEl.value.trim();
     if (!text || !this.agentLoop) {
       if (!this.agentLoop)
-        new import_obsidian2.Notice("Thought Agent not initialized. Check your API key in settings.");
+        new import_obsidian2.Notice(
+          "Thought Agent not initialized. Check your API key in settings."
+        );
       return;
     }
     this.inputEl.value = "";
@@ -695,9 +722,7 @@ var ChatView = class extends import_obsidian2.ItemView {
           },
           onGraphQuery: (filter) => {
             if (!this.stopped)
-              void this.plugin.openGraphView(
-                filter
-              );
+              void this.plugin.openGraphView(filter);
           }
         }
       );
@@ -4576,7 +4601,10 @@ var AgentLoop = class {
       ...history,
       { role: "user", content: userMessage }
     ];
-    const systemPrompt = buildSystemPrompt(session, this.tools.some((t) => t.name === "create_diagram"));
+    const systemPrompt = buildSystemPrompt(
+      session,
+      this.tools.some((t) => t.name === "create_diagram")
+    );
     const iterationLimit = Math.max(
       1,
       callbacks.maxIterationsOverride ?? this.maxIterations
@@ -6093,66 +6121,94 @@ tags: [${tags.join(", ")}]
   }
   // ── Diagram tools ─────────────────────────────────────────────────────────
   async readDiagram(input) {
-    if (!this.excalidraw) return { content: "Excalidraw plugin is not installed." };
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
     const filePath = input.filePath;
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath);
-      if (!file || !(file instanceof import_obsidian7.TFile)) return { content: `Diagram not found: ${filePath}` };
+      if (!file || !(file instanceof import_obsidian7.TFile))
+        return { content: `Diagram not found: ${filePath}` };
       const content = await this.app.vault.read(file);
       const extracted = this.diagramExtractor.extract(filePath, content);
       return {
-        content: JSON.stringify({
-          title: extracted.title,
-          nodeCount: extracted.nodes.length,
-          edgeCount: extracted.edges.length,
-          nodes: extracted.nodes,
-          edges: extracted.edges,
-          freeText: extracted.freeText,
-          summary: extracted.summary
-        }, null, 2)
+        content: JSON.stringify(
+          {
+            title: extracted.title,
+            nodeCount: extracted.nodes.length,
+            edgeCount: extracted.edges.length,
+            nodes: extracted.nodes,
+            edges: extracted.edges,
+            freeText: extracted.freeText,
+            summary: extracted.summary
+          },
+          null,
+          2
+        )
       };
     } catch (e) {
-      return { content: `Error reading diagram: ${e instanceof Error ? e.message : String(e)}` };
+      return {
+        content: `Error reading diagram: ${e instanceof Error ? e.message : String(e)}`
+      };
     }
   }
   async searchDiagrams(input) {
-    if (!this.excalidraw) return { content: "Excalidraw plugin is not installed." };
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
     const query = input.query;
     const topK = input.topK ?? 3;
     const queryEmbedding = await embed(query);
     const results = this.store.searchDiagrams(queryEmbedding, topK);
-    if (results.length === 0) return { content: "No diagrams indexed yet. Try re-indexing." };
+    if (results.length === 0)
+      return { content: "No diagrams indexed yet. Try re-indexing." };
     return {
-      content: JSON.stringify(results.map((r) => ({
-        filePath: r.chunk.diagramPath,
-        title: r.chunk.title,
-        nodeCount: r.chunk.nodeCount,
-        edgeCount: r.chunk.edgeCount,
-        summary: r.chunk.content.split("\n").slice(0, 3).join(" "),
-        score: Math.round(r.score * 100) / 100
-      })), null, 2)
+      content: JSON.stringify(
+        results.map((r) => ({
+          filePath: r.chunk.diagramPath,
+          title: r.chunk.title,
+          nodeCount: r.chunk.nodeCount,
+          edgeCount: r.chunk.edgeCount,
+          summary: r.chunk.content.split("\n").slice(0, 3).join(" "),
+          score: Math.round(r.score * 100) / 100
+        })),
+        null,
+        2
+      )
     };
   }
   createDiagram(input) {
-    if (!this.excalidraw) return { content: "Excalidraw plugin is not installed." };
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
     const spec = {
       type: input.type,
       title: input.title,
       nodes: input.nodes ?? [],
       edges: input.edges ?? []
     };
-    const folder = this.resolveDiagramFolder(input.folder);
+    const folder = this.resolveDiagramFolder(
+      input.folder
+    );
     const fileName = `${spec.title.replace(/[/\\:*?"<>|]/g, "-")}.excalidraw`;
     const filePath = folder ? `${folder.replace(/\/$/, "")}/${fileName}` : fileName;
     const content = this.diagramLayoutEngine.layout(spec);
-    const change = { kind: "create_diagram", filePath, content, spec };
+    const change = {
+      kind: "create_diagram",
+      filePath,
+      content,
+      spec
+    };
     return {
-      content: JSON.stringify({ status: "pending_approval", filePath, nodeCount: spec.nodes.length, edgeCount: spec.edges.length }),
+      content: JSON.stringify({
+        status: "pending_approval",
+        filePath,
+        nodeCount: spec.nodes.length,
+        edgeCount: spec.edges.length
+      }),
       pendingChange: change
     };
   }
   async updateDiagram(input) {
-    if (!this.excalidraw) return { content: "Excalidraw plugin is not installed." };
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
     const filePath = input.filePath;
     let originalContent;
     try {
@@ -6165,7 +6221,10 @@ tags: [${tags.join(", ")}]
     const updateLabels = input.updateLabels ?? [];
     const updatedContent = JSON.parse(JSON.stringify(originalContent));
     const existingEls = updatedContent.elements;
-    const maxX = existingEls.reduce((m, e) => Math.max(m, (e.x ?? 0) + (e.width ?? 0)), 200);
+    const maxX = existingEls.reduce(
+      (m, e) => Math.max(m, (e.x ?? 0) + (e.width ?? 0)),
+      200
+    );
     let nextX = maxX + 80, nextY = 100;
     const newElIds = /* @__PURE__ */ new Map();
     for (const node of addNodes) {
@@ -6210,7 +6269,9 @@ tags: [${tags.join(", ")}]
       });
     }
     for (const upd of updateLabels) {
-      const el = updatedContent.elements.find((e) => e.id === upd.nodeId);
+      const el = updatedContent.elements.find(
+        (e) => e.id === upd.nodeId
+      );
       if (el) {
         if (el.text !== void 0) el.text = upd.newLabel;
         if (el.label) el.label.text = upd.newLabel;
@@ -6219,16 +6280,28 @@ tags: [${tags.join(", ")}]
     const parts = [];
     if (addNodes.length > 0) parts.push(`${addNodes.length} node(s) added`);
     if (addEdges.length > 0) parts.push(`${addEdges.length} edge(s) added`);
-    if (updateLabels.length > 0) parts.push(`${updateLabels.length} label(s) updated`);
+    if (updateLabels.length > 0)
+      parts.push(`${updateLabels.length} label(s) updated`);
     const diffSummary = parts.join(", ") || "No changes";
-    const change = { kind: "update_diagram", filePath, originalContent, updatedContent, diffSummary };
+    const change = {
+      kind: "update_diagram",
+      filePath,
+      originalContent,
+      updatedContent,
+      diffSummary
+    };
     return {
-      content: JSON.stringify({ status: "pending_approval", filePath, diffSummary }),
+      content: JSON.stringify({
+        status: "pending_approval",
+        filePath,
+        diffSummary
+      }),
       pendingChange: change
     };
   }
   async annotateDiagram(input) {
-    if (!this.excalidraw) return { content: "Excalidraw plugin is not installed." };
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
     const diagramPath = input.diagramPath;
     const notePath = input.notePath;
     const annotationText = input.annotationText ?? "";
@@ -6263,9 +6336,19 @@ ${noteLink}`;
       textAlign: "left",
       boundElements: []
     };
-    const change = { kind: "annotate_diagram", diagramPath, notePath, diagramAddition, noteAddition };
+    const change = {
+      kind: "annotate_diagram",
+      diagramPath,
+      notePath,
+      diagramAddition,
+      noteAddition
+    };
     return {
-      content: JSON.stringify({ status: "pending_approval", diagramPath, notePath }),
+      content: JSON.stringify({
+        status: "pending_approval",
+        diagramPath,
+        notePath
+      }),
       pendingChange: change
     };
   }
@@ -7130,7 +7213,8 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       if (!file || file.extension !== "md") return;
       const content = await this.app.vault.cachedRead(file);
       const activeFile = { path: file.path, content: content.slice(0, 500) };
-      if (this.session.activeFile?.path === activeFile.path && this.session.activeFile?.content === activeFile.content) return;
+      if (this.session.activeFile?.path === activeFile.path && this.session.activeFile?.content === activeFile.content)
+        return;
       this.session = { ...this.session, activeFile };
       this.getChatView()?.updateSession(this.session);
     };
@@ -7175,7 +7259,12 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       this.settings.diagramDefaultFolder,
       this.settings.diagramEmbedStyle
     );
-    const loop = new AgentLoop(provider, executor, this.settings.maxIterations, excalidrawAvailable);
+    const loop = new AgentLoop(
+      provider,
+      executor,
+      this.settings.maxIterations,
+      excalidrawAvailable
+    );
     this.getChatView()?.setAgentLoop(loop);
   }
   getChatView() {

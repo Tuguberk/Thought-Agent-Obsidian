@@ -9,6 +9,7 @@ pnpm-debug.log*
 
 # Build cache
 *.tsbuildinfo
+src/**/*.js
 
 # Environment files
 .env

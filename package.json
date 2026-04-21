@@ -1,6 +1,6 @@
 {
   "name": "obsidian-ai-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Thought Agent — Obsidian AI plugin",
   "main": "main.js",
   "scripts": {
@@ -13,8 +13,12 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.0",
+    "@typescript-eslint/parser": "^8.59.0",
     "builtin-modules": "^3.3.0",
     "esbuild": "^0.21.3",
+    "eslint": "^9.39.4",
+    "eslint-plugin-obsidianmd": "^0.2.4",
     "obsidian": "latest",
     "tslib": "2.6.2",
     "typescript": "5.4.5"

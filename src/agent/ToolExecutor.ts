@@ -6,10 +6,17 @@ import { hybridSearch } from "../retrieval/HybridSearch";
 import { graphEnhancedRetrieval } from "../retrieval/GraphEnhanced";
 import { mmr } from "../retrieval/MMR";
 import { embed } from "../retrieval/Embedder";
-import type { ExcalidrawAdapter, ExcalidrawElement } from "../excalidraw/ExcalidrawAdapter";
+import type {
+  ExcalidrawAdapter,
+  ExcalidrawElement,
+} from "../excalidraw/ExcalidrawAdapter";
 import { DiagramExtractor } from "../excalidraw/DiagramExtractor";
 import { DiagramLayoutEngine } from "../excalidraw/DiagramLayoutEngine";
-import type { SpecNode, SpecEdge, DiagramSpec } from "../excalidraw/DiagramLayoutEngine";
+import type {
+  SpecNode,
+  SpecEdge,
+  DiagramSpec,
+} from "../excalidraw/DiagramLayoutEngine";
 
 export interface ToolResult {
   content: string;
@@ -25,9 +32,9 @@ export interface GraphFilter {
 }
 
 export class ToolExecutor {
-  private diagramExtractor = new DiagramExtractor()
-  private diagramLayoutEngine = new DiagramLayoutEngine()
-  private readonly fallbackDiagramFolder = 'Diagrams'
+  private diagramExtractor = new DiagramExtractor();
+  private diagramLayoutEngine = new DiagramLayoutEngine();
+  private readonly fallbackDiagramFolder = "Diagrams";
 
   constructor(
     private app: App,
@@ -35,30 +42,32 @@ export class ToolExecutor {
     private session: SessionContext,
     private onSessionUpdate: (ctx: SessionContext) => void,
     private excalidraw?: ExcalidrawAdapter,
-    private diagramDefaultFolder = '',
-    private diagramEmbedStyle: 'embed' | 'link' = 'embed',
+    private diagramDefaultFolder = "",
+    private diagramEmbedStyle: "embed" | "link" = "embed",
   ) {}
 
   private normalizeFolderPath(folder?: string): string {
-    if (!folder) return ''
+    if (!folder) return "";
     return folder
       .trim()
-      .replace(/^\/+|\/+$/g, '')
-      .replace(/\\+/g, '/')
-      .replace(/\/+/g, '/')
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/\\+/g, "/")
+      .replace(/\/+/g, "/");
   }
 
   private resolveDiagramFolder(requestedFolder?: string): string {
-    const baseFolder = this.normalizeFolderPath(this.diagramDefaultFolder) || this.fallbackDiagramFolder
-    const requested = this.normalizeFolderPath(requestedFolder)
+    const baseFolder =
+      this.normalizeFolderPath(this.diagramDefaultFolder) ||
+      this.fallbackDiagramFolder;
+    const requested = this.normalizeFolderPath(requestedFolder);
 
-    if (!requested) return baseFolder
+    if (!requested) return baseFolder;
 
     if (requested === baseFolder || requested.startsWith(`${baseFolder}/`)) {
-      return requested
+      return requested;
     }
 
-    return `${baseFolder}/${requested}`
+    return `${baseFolder}/${requested}`;
   }
 
   private getBacklinkPaths(notePath: string): string[] {
@@ -224,9 +233,7 @@ export class ToolExecutor {
     };
   }
 
-  private getNeighbors(
-    input: Record<string, unknown>,
-  ): ToolResult {
+  private getNeighbors(input: Record<string, unknown>): ToolResult {
     const notePath = input.notePath as string;
     const depth = (input.depth as number) ?? 1;
 
@@ -296,9 +303,7 @@ export class ToolExecutor {
     return { content: JSON.stringify(neighbors, null, 2) };
   }
 
-  private getBacklinks(
-    input: Record<string, unknown>,
-  ): ToolResult {
+  private getBacklinks(input: Record<string, unknown>): ToolResult {
     const notePath = input.notePath as string;
     const file = this.app.vault.getFileByPath(notePath);
     if (!file || !(file instanceof TFile))
@@ -637,178 +642,273 @@ export class ToolExecutor {
 
   // ── Diagram tools ─────────────────────────────────────────────────────────
 
-  private async readDiagram(input: Record<string, unknown>): Promise<ToolResult> {
-    if (!this.excalidraw) return { content: 'Excalidraw plugin is not installed.' }
-    const filePath = input.filePath as string
+  private async readDiagram(
+    input: Record<string, unknown>,
+  ): Promise<ToolResult> {
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
+    const filePath = input.filePath as string;
     try {
-      const file = this.app.vault.getAbstractFileByPath(filePath)
-      if (!file || !(file instanceof TFile)) return { content: `Diagram not found: ${filePath}` }
-      const content = await this.app.vault.read(file)
-      const extracted = this.diagramExtractor.extract(filePath, content)
+      const file = this.app.vault.getAbstractFileByPath(filePath);
+      if (!file || !(file instanceof TFile))
+        return { content: `Diagram not found: ${filePath}` };
+      const content = await this.app.vault.read(file);
+      const extracted = this.diagramExtractor.extract(filePath, content);
       return {
-        content: JSON.stringify({
-          title: extracted.title,
-          nodeCount: extracted.nodes.length,
-          edgeCount: extracted.edges.length,
-          nodes: extracted.nodes,
-          edges: extracted.edges,
-          freeText: extracted.freeText,
-          summary: extracted.summary,
-        }, null, 2),
-      }
+        content: JSON.stringify(
+          {
+            title: extracted.title,
+            nodeCount: extracted.nodes.length,
+            edgeCount: extracted.edges.length,
+            nodes: extracted.nodes,
+            edges: extracted.edges,
+            freeText: extracted.freeText,
+            summary: extracted.summary,
+          },
+          null,
+          2,
+        ),
+      };
     } catch (e) {
-      return { content: `Error reading diagram: ${e instanceof Error ? e.message : String(e)}` }
+      return {
+        content: `Error reading diagram: ${e instanceof Error ? e.message : String(e)}`,
+      };
     }
   }
 
-  private async searchDiagrams(input: Record<string, unknown>): Promise<ToolResult> {
-    if (!this.excalidraw) return { content: 'Excalidraw plugin is not installed.' }
-    const query = input.query as string
-    const topK = (input.topK as number) ?? 3
-    const queryEmbedding = await embed(query)
-    const results = this.store.searchDiagrams(queryEmbedding, topK)
-    if (results.length === 0) return { content: 'No diagrams indexed yet. Try re-indexing.' }
+  private async searchDiagrams(
+    input: Record<string, unknown>,
+  ): Promise<ToolResult> {
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
+    const query = input.query as string;
+    const topK = (input.topK as number) ?? 3;
+    const queryEmbedding = await embed(query);
+    const results = this.store.searchDiagrams(queryEmbedding, topK);
+    if (results.length === 0)
+      return { content: "No diagrams indexed yet. Try re-indexing." };
     return {
-      content: JSON.stringify(results.map((r) => ({
-        filePath: r.chunk.diagramPath,
-        title: r.chunk.title,
-        nodeCount: r.chunk.nodeCount,
-        edgeCount: r.chunk.edgeCount,
-        summary: r.chunk.content.split('\n').slice(0, 3).join(' '),
-        score: Math.round(r.score * 100) / 100,
-      })), null, 2),
-    }
+      content: JSON.stringify(
+        results.map((r) => ({
+          filePath: r.chunk.diagramPath,
+          title: r.chunk.title,
+          nodeCount: r.chunk.nodeCount,
+          edgeCount: r.chunk.edgeCount,
+          summary: r.chunk.content.split("\n").slice(0, 3).join(" "),
+          score: Math.round(r.score * 100) / 100,
+        })),
+        null,
+        2,
+      ),
+    };
   }
 
   private createDiagram(input: Record<string, unknown>): ToolResult {
-    if (!this.excalidraw) return { content: 'Excalidraw plugin is not installed.' }
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
     const spec: DiagramSpec = {
-      type: input.type as DiagramSpec['type'],
+      type: input.type as DiagramSpec["type"],
       title: input.title as string,
       nodes: (input.nodes as SpecNode[]) ?? [],
       edges: (input.edges as SpecEdge[]) ?? [],
-    }
-    const folder = this.resolveDiagramFolder(input.folder as string | undefined)
-    const fileName = `${spec.title.replace(/[/\\:*?"<>|]/g, '-')}.excalidraw`
-    const filePath = folder ? `${folder.replace(/\/$/, '')}/${fileName}` : fileName
+    };
+    const folder = this.resolveDiagramFolder(
+      input.folder as string | undefined,
+    );
+    const fileName = `${spec.title.replace(/[/\\:*?"<>|]/g, "-")}.excalidraw`;
+    const filePath = folder
+      ? `${folder.replace(/\/$/, "")}/${fileName}`
+      : fileName;
 
-    const content = this.diagramLayoutEngine.layout(spec)
-    const change: PendingChange = { kind: 'create_diagram', filePath, content, spec }
+    const content = this.diagramLayoutEngine.layout(spec);
+    const change: PendingChange = {
+      kind: "create_diagram",
+      filePath,
+      content,
+      spec,
+    };
 
     return {
-      content: JSON.stringify({ status: 'pending_approval', filePath, nodeCount: spec.nodes.length, edgeCount: spec.edges.length }),
+      content: JSON.stringify({
+        status: "pending_approval",
+        filePath,
+        nodeCount: spec.nodes.length,
+        edgeCount: spec.edges.length,
+      }),
       pendingChange: change,
-    }
+    };
   }
 
-  private async updateDiagram(input: Record<string, unknown>): Promise<ToolResult> {
-    if (!this.excalidraw) return { content: 'Excalidraw plugin is not installed.' }
-    const filePath = input.filePath as string
-    let originalContent
+  private async updateDiagram(
+    input: Record<string, unknown>,
+  ): Promise<ToolResult> {
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
+    const filePath = input.filePath as string;
+    let originalContent;
     try {
-      originalContent = await this.excalidraw.readFile(filePath)
+      originalContent = await this.excalidraw.readFile(filePath);
     } catch {
-      return { content: `Diagram not found: ${filePath}` }
+      return { content: `Diagram not found: ${filePath}` };
     }
 
-    const addNodes = (input.addNodes as SpecNode[] | undefined) ?? []
-    const addEdges = (input.addEdges as SpecEdge[] | undefined) ?? []
-    const updateLabels = (input.updateLabels as Array<{ nodeId: string; newLabel: string }> | undefined) ?? []
+    const addNodes = (input.addNodes as SpecNode[] | undefined) ?? [];
+    const addEdges = (input.addEdges as SpecEdge[] | undefined) ?? [];
+    const updateLabels =
+      (input.updateLabels as
+        | Array<{ nodeId: string; newLabel: string }>
+        | undefined) ?? [];
 
-    const updatedContent = JSON.parse(JSON.stringify(originalContent))
+    const updatedContent = JSON.parse(JSON.stringify(originalContent));
 
     // Find bounding box of existing elements to place new nodes in free area
-    const existingEls = updatedContent.elements
-    const maxX = existingEls.reduce((m: number, e: { x?: number; width?: number }) => Math.max(m, (e.x ?? 0) + (e.width ?? 0)), 200)
-    let nextX = maxX + 80, nextY = 100
+    const existingEls = updatedContent.elements;
+    const maxX = existingEls.reduce(
+      (m: number, e: { x?: number; width?: number }) =>
+        Math.max(m, (e.x ?? 0) + (e.width ?? 0)),
+      200,
+    );
+    let nextX = maxX + 80,
+      nextY = 100;
 
-    const newElIds = new Map<string, string>()
+    const newElIds = new Map<string, string>();
     for (const node of addNodes) {
-      const elId = `update_${node.id}_${Date.now()}`
-      newElIds.set(node.id, elId)
+      const elId = `update_${node.id}_${Date.now()}`;
+      newElIds.set(node.id, elId);
       updatedContent.elements.push({
-        id: elId, type: 'rectangle',
-        x: nextX, y: nextY,
-        width: 160, height: 60,
+        id: elId,
+        type: "rectangle",
+        x: nextX,
+        y: nextY,
+        width: 160,
+        height: 60,
         label: { text: node.label },
-        backgroundColor: '#f0f9e8', strokeColor: '#888888',
-        fontSize: 16, fontFamily: 1, textAlign: 'center', boundElements: [],
-      })
-      nextY += 100
-      if (nextY > 800) { nextY = 100; nextX += 200 }
-    }
-
-    for (const edge of addEdges) {
-      const fromId = newElIds.get(edge.from) ?? edge.from
-      const toId = newElIds.get(edge.to) ?? edge.to
-      updatedContent.elements.push({
-        id: `arrow_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-        type: 'arrow', x: 0, y: 0, width: 0, height: 0,
-        startBinding: { elementId: fromId, focus: 0, gap: 8 },
-        endBinding: { elementId: toId, focus: 0, gap: 8 },
-        strokeColor: '#666666', boundElements: [],
-        ...(edge.label ? { label: { text: edge.label } } : {}),
-      })
-    }
-
-    for (const upd of updateLabels) {
-      const el = updatedContent.elements.find((e: { id: string }) => e.id === upd.nodeId)
-      if (el) {
-        if (el.text !== undefined) el.text = upd.newLabel
-        if (el.label) el.label.text = upd.newLabel
+        backgroundColor: "#f0f9e8",
+        strokeColor: "#888888",
+        fontSize: 16,
+        fontFamily: 1,
+        textAlign: "center",
+        boundElements: [],
+      });
+      nextY += 100;
+      if (nextY > 800) {
+        nextY = 100;
+        nextX += 200;
       }
     }
 
-    const parts: string[] = []
-    if (addNodes.length > 0) parts.push(`${addNodes.length} node(s) added`)
-    if (addEdges.length > 0) parts.push(`${addEdges.length} edge(s) added`)
-    if (updateLabels.length > 0) parts.push(`${updateLabels.length} label(s) updated`)
-    const diffSummary = parts.join(', ') || 'No changes'
-
-    const change: PendingChange = { kind: 'update_diagram', filePath, originalContent, updatedContent, diffSummary }
-    return {
-      content: JSON.stringify({ status: 'pending_approval', filePath, diffSummary }),
-      pendingChange: change,
+    for (const edge of addEdges) {
+      const fromId = newElIds.get(edge.from) ?? edge.from;
+      const toId = newElIds.get(edge.to) ?? edge.to;
+      updatedContent.elements.push({
+        id: `arrow_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        type: "arrow",
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        startBinding: { elementId: fromId, focus: 0, gap: 8 },
+        endBinding: { elementId: toId, focus: 0, gap: 8 },
+        strokeColor: "#666666",
+        boundElements: [],
+        ...(edge.label ? { label: { text: edge.label } } : {}),
+      });
     }
+
+    for (const upd of updateLabels) {
+      const el = updatedContent.elements.find(
+        (e: { id: string }) => e.id === upd.nodeId,
+      );
+      if (el) {
+        if (el.text !== undefined) el.text = upd.newLabel;
+        if (el.label) el.label.text = upd.newLabel;
+      }
+    }
+
+    const parts: string[] = [];
+    if (addNodes.length > 0) parts.push(`${addNodes.length} node(s) added`);
+    if (addEdges.length > 0) parts.push(`${addEdges.length} edge(s) added`);
+    if (updateLabels.length > 0)
+      parts.push(`${updateLabels.length} label(s) updated`);
+    const diffSummary = parts.join(", ") || "No changes";
+
+    const change: PendingChange = {
+      kind: "update_diagram",
+      filePath,
+      originalContent,
+      updatedContent,
+      diffSummary,
+    };
+    return {
+      content: JSON.stringify({
+        status: "pending_approval",
+        filePath,
+        diffSummary,
+      }),
+      pendingChange: change,
+    };
   }
 
-  private async annotateDiagram(input: Record<string, unknown>): Promise<ToolResult> {
-    if (!this.excalidraw) return { content: 'Excalidraw plugin is not installed.' }
-    const diagramPath = input.diagramPath as string
-    const notePath = input.notePath as string
-    const annotationText = (input.annotationText as string | undefined) ?? ''
+  private async annotateDiagram(
+    input: Record<string, unknown>,
+  ): Promise<ToolResult> {
+    if (!this.excalidraw)
+      return { content: "Excalidraw plugin is not installed." };
+    const diagramPath = input.diagramPath as string;
+    const notePath = input.notePath as string;
+    const annotationText = (input.annotationText as string | undefined) ?? "";
 
-    const noteFile = this.app.vault.getFileByPath(notePath)
-    if (!noteFile) return { content: `Note not found: ${notePath}` }
+    const noteFile = this.app.vault.getFileByPath(notePath);
+    if (!noteFile) return { content: `Note not found: ${notePath}` };
 
-    const noteName = notePath.replace(/\.md$/, '')
+    const noteName = notePath.replace(/\.md$/, "");
 
-    const style = this.diagramEmbedStyle
-    const noteLink = style === 'embed' ? `![[${diagramPath}]]` : `[[${diagramPath}]]`
+    const style = this.diagramEmbedStyle;
+    const noteLink =
+      style === "embed" ? `![[${diagramPath}]]` : `[[${diagramPath}]]`;
     const noteAddition = annotationText
       ? `${annotationText}\n${noteLink}`
-      : `\n## Related Diagram\n${noteLink}`
+      : `\n## Related Diagram\n${noteLink}`;
 
     // Find bottom-right corner of diagram
-    let diagramEls: ExcalidrawElement[] = []
-    try { diagramEls = await this.excalidraw!.getElementsFromFile(diagramPath) } catch { diagramEls = [] }
-    const maxX = diagramEls.reduce((m, e) => Math.max(m, e.x + e.width), 600)
-    const maxY = diagramEls.reduce((m, e) => Math.max(m, e.y + e.height), 400)
+    let diagramEls: ExcalidrawElement[] = [];
+    try {
+      diagramEls = await this.excalidraw.getElementsFromFile(diagramPath);
+    } catch {
+      diagramEls = [];
+    }
+    const maxX = diagramEls.reduce((m, e) => Math.max(m, e.x + e.width), 600);
+    const maxY = diagramEls.reduce((m, e) => Math.max(m, e.y + e.height), 400);
 
     const diagramAddition: ExcalidrawElement = {
       id: `annotation_${Date.now()}`,
-      type: 'text',
-      x: maxX + 20, y: maxY + 20,
-      width: 200, height: 30,
+      type: "text",
+      x: maxX + 20,
+      y: maxY + 20,
+      width: 200,
+      height: 30,
       text: `→ [[${noteName}]]`,
-      strokeColor: '#666666', fontSize: 14, fontFamily: 1,
-      textAlign: 'left', boundElements: [],
-    }
+      strokeColor: "#666666",
+      fontSize: 14,
+      fontFamily: 1,
+      textAlign: "left",
+      boundElements: [],
+    };
 
-    const change: PendingChange = { kind: 'annotate_diagram', diagramPath, notePath, diagramAddition, noteAddition }
+    const change: PendingChange = {
+      kind: "annotate_diagram",
+      diagramPath,
+      notePath,
+      diagramAddition,
+      noteAddition,
+    };
     return {
-      content: JSON.stringify({ status: 'pending_approval', diagramPath, notePath }),
+      content: JSON.stringify({
+        status: "pending_approval",
+        diagramPath,
+        notePath,
+      }),
       pendingChange: change,
-    }
+    };
   }
 }

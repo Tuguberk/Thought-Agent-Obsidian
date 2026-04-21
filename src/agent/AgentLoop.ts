@@ -52,7 +52,10 @@ export class AgentLoop {
       { role: "user", content: userMessage },
     ];
 
-    const systemPrompt = buildSystemPrompt(session, this.tools.some((t) => t.name === 'create_diagram'));
+    const systemPrompt = buildSystemPrompt(
+      session,
+      this.tools.some((t) => t.name === "create_diagram"),
+    );
 
     const iterationLimit = Math.max(
       1,
