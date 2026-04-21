@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-ai-agent",
+  "id": "thought-agent",
   "name": "Thought Agent",
   "version": "1.0.0",
   "minAppVersion": "1.4.0",
-  "description": "An AI agent that can converse with your notes, manipulate the knowledge graph, and create new notes.",
+  "description": "An autonomous graph-aware AI assistant that chats with your notes, proposes edits safely, and creates intelligent mindmaps.",
   "author": "Tugberk Akbulut",
   "authorUrl": "",
   "fundingUrl": "",
