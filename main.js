@@ -329,14 +329,21 @@ function defaultSessionContext() {
 function sessionContextToPrompt(ctx) {
   const lines = [];
   if (ctx.activeFile) {
-    lines.push(`ACTIVE NOTE: The user currently has the note "${ctx.activeFile.path}" open in the editor.`);
-    lines.push(`If the user says "edit", "update", "add to", "modify", "change", "fix", "append", "prepend" or similar write commands without specifying a note path, they most likely mean this active note.`);
-    lines.push(`Use get_note on this path to read its full content before making changes.`);
-    if (ctx.activeFile.content) {
-      lines.push(`The first part of the active note content:
+    if (ctx.activeFile.isDiagram) {
+      lines.push(`ACTIVE DIAGRAM: The user currently has the Excalidraw diagram "${ctx.activeFile.path}" open.`);
+      lines.push(`When the user refers to "this", "it", "the diagram", "bu", "bunu", "bu diyagram", or gives a vague command \u2014 they mean THIS diagram.`);
+      lines.push(`The diagram image has been attached to the user message. Use it to read handwriting, drawings, and visual content.`);
+      lines.push(`You can also call read_diagram on "${ctx.activeFile.path}" to get the structured text representation (nodes, edges, labels).`);
+    } else {
+      lines.push(`ACTIVE NOTE: The user currently has the note "${ctx.activeFile.path}" open in the editor.`);
+      lines.push(`If the user says "edit", "update", "add to", "modify", "change", "fix", "append", "prepend" or similar write commands without specifying a note path, they most likely mean this active note.`);
+      lines.push(`Use get_note on this path to read its full content before making changes.`);
+      if (ctx.activeFile.content) {
+        lines.push(`The first part of the active note content:
 ---
 ${ctx.activeFile.content}
 ---`);
+      }
     }
   }
   if (ctx.tagFilter?.length) {
@@ -605,9 +612,9 @@ var ChatView = class extends import_obsidian2.ItemView {
     const ctx = this.session;
     const chips = [];
     if (ctx.activeFile) {
-      const name = ctx.activeFile.path.split("/").pop()?.replace(/\.md$/, "") ?? ctx.activeFile.path;
+      const name = ctx.activeFile.isDiagram ? ctx.activeFile.path.split("/").pop()?.replace(/\.excalidraw$/, "") ?? ctx.activeFile.path : ctx.activeFile.path.split("/").pop()?.replace(/\.md$/, "") ?? ctx.activeFile.path;
       chips.push({
-        icon: "\u{1F4C4}",
+        icon: ctx.activeFile.isDiagram ? "\u{1F5BC}\uFE0F" : "\u{1F4C4}",
         label: name,
         onClear: () => {
           this.session = { ...this.session, activeFile: null };
@@ -3940,6 +3947,9 @@ var AnthropicProvider = class {
   supportsNativeToolUse() {
     return true;
   }
+  supportsMultimodalToolResults() {
+    return true;
+  }
   async chat(messages, tools, systemPrompt) {
     const anthropicMessages = messages.map((m) => ({
       role: m.role,
@@ -4070,6 +4080,9 @@ var OpenAICompatibleProvider = class {
   supportsNativeToolUse() {
     return true;
   }
+  supportsMultimodalToolResults() {
+    return false;
+  }
   async chat(messages, tools, systemPrompt) {
     const oaiMessages = [
       { role: "system", content: systemPrompt },
@@ -4148,11 +4161,21 @@ var OpenAICompatibleProvider = class {
       const toolResults = blocks.filter((b) => b.type === "tool_result");
       for (const tr of toolResults) {
         if (tr.type === "tool_result") {
-          result.push({
-            role: "tool",
-            content: tr.content,
-            tool_call_id: tr.tool_use_id
-          });
+          const trContent = tr.content;
+          if (Array.isArray(trContent)) {
+            const textPart = trContent.find((b) => b.type === "text");
+            result.push({
+              role: "tool",
+              content: textPart?.text ?? "",
+              tool_call_id: tr.tool_use_id
+            });
+          } else {
+            result.push({
+              role: "tool",
+              content: trContent,
+              tool_call_id: tr.tool_use_id
+            });
+          }
         }
       }
       const nonResults = blocks.filter((b) => b.type !== "tool_result");
@@ -4234,8 +4257,11 @@ Always go through the preview \u2192 approval flow. Never write diagrams directl
 `;
 function buildSystemPrompt(session, excalidrawAvailable = false) {
   const constraintSection = sessionContextToPrompt(session);
-  const activeFileHeader = session.activeFile ? `CURRENTLY OPEN NOTE: "${session.activeFile.path}"
-When the user says "this", "it", "the file", "bu", "bunu", "bunu", "bu dosya", or gives a vague command like "make it longer", "edit this", "detayland\u0131r", "d\xFCzenle", "g\xFCncelle" \u2014 they mean THIS note. Act on it directly without asking for clarification.
+  const activeFileHeader = session.activeFile ? session.activeFile.isDiagram ? `CURRENTLY OPEN DIAGRAM: "${session.activeFile.path}"
+When the user says "this", "it", "the diagram", "bu", "bunu", "bu diyagram", or gives a vague command \u2014 they mean THIS diagram. The diagram image is attached to the user message so you can see it directly. Call read_diagram on it for structured node/edge data.
+
+` : `CURRENTLY OPEN NOTE: "${session.activeFile.path}"
+When the user says "this", "it", "the file", "bu", "bunu", "bu dosya", or gives a vague command like "make it longer", "edit this", "detayland\u0131r", "d\xFCzenle", "g\xFCncelle" \u2014 they mean THIS note. Act on it directly without asking for clarification.
 
 ` : "";
   return `${activeFileHeader}You are an AI knowledge assistant integrated into the user's Obsidian vault. Your job is to help them understand, navigate, and expand their personal knowledge graph.
@@ -4686,16 +4712,28 @@ var AgentLoop = class {
   executor;
   maxIterations;
   tools;
-  constructor(provider, executor, maxIterations = 15, excalidrawAvailable = false) {
+  excalidraw;
+  constructor(provider, executor, maxIterations = 15, excalidrawAvailable = false, excalidraw) {
     this.provider = provider;
     this.executor = executor;
     this.maxIterations = maxIterations;
     this.tools = getTools(excalidrawAvailable);
+    this.excalidraw = excalidraw;
   }
   async run(userMessage, history, session, callbacks = {}) {
+    let initialUserContent = userMessage;
+    if (session.activeFile?.isDiagram && this.excalidraw) {
+      const png = await this.excalidraw.exportToPNG(session.activeFile.path);
+      if (png) {
+        initialUserContent = [
+          { type: "text", text: userMessage },
+          { type: "image", source: { type: "base64", media_type: "image/png", data: png } }
+        ];
+      }
+    }
     const messages = [
       ...history,
-      { role: "user", content: userMessage }
+      { role: "user", content: initialUserContent }
     ];
     const systemPrompt = buildSystemPrompt(
       session,
@@ -4732,6 +4770,7 @@ var AgentLoop = class {
         return textBlocks.map((b) => b.text).join("");
       }
       const toolResults = [];
+      const pendingImages = [];
       for (const toolUse of toolUseBlocks) {
         if (callbacks.onToolCall)
           callbacks.onToolCall(toolUse.name, toolUse.input);
@@ -4744,13 +4783,37 @@ var AgentLoop = class {
         }
         if (callbacks.onToolResult)
           callbacks.onToolResult(toolUse.name, result.content);
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: result.content
-        });
+        const hasImages = result.images && result.images.length > 0;
+        if (hasImages && this.provider.supportsMultimodalToolResults()) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: [
+              { type: "text", text: result.content },
+              ...result.images
+            ]
+          });
+        } else {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: result.content
+          });
+          if (hasImages && !this.provider.supportsMultimodalToolResults()) {
+            pendingImages.push(...result.images);
+          }
+        }
       }
       messages.push({ role: "user", content: toolResults });
+      if (pendingImages.length > 0) {
+        messages.push({
+          role: "user",
+          content: [
+            { type: "text", text: "Diagram g\xF6r\xFCnt\xFCs\xFC (el yaz\u0131s\u0131 ve \xE7izimler dahil):" },
+            ...pendingImages
+          ]
+        });
+      }
     }
     return `[Agent reached max iterations (${iterationLimit}). The last response may be incomplete.]`;
   }
@@ -5079,13 +5142,40 @@ function yieldToUI() {
 
 // src/excalidraw/DiagramExtractor.ts
 var DiagramExtractor = class {
+  tryParseElements(fileContent) {
+    const tryFile = (raw) => {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.elements)) return parsed.elements;
+      } catch {
+      }
+      return null;
+    };
+    const direct = tryFile(fileContent);
+    if (direct) return direct;
+    const fencedMatches = fileContent.matchAll(
+      /```\s*(?:json|compressed-json)\s*\n([\s\S]*?)\n```/gi
+    );
+    for (const match of fencedMatches) {
+      const maybe = tryFile((match[1] ?? "").trim());
+      if (maybe) return maybe;
+    }
+    const firstBrace = fileContent.indexOf("{");
+    const lastBrace = fileContent.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      const maybe = tryFile(fileContent.slice(firstBrace, lastBrace + 1));
+      if (maybe) return maybe;
+    }
+    return null;
+  }
+  extractFromElements(filePath, elements) {
+    const title = filePath.split("/").pop()?.replace(/\.excalidraw$/, "") ?? filePath;
+    return this.buildDiagram(filePath, title, elements);
+  }
   extract(filePath, fileContent) {
     const title = filePath.split("/").pop()?.replace(/\.excalidraw$/, "") ?? filePath;
-    let elements = [];
-    try {
-      const parsed = JSON.parse(fileContent);
-      elements = parsed.elements ?? [];
-    } catch {
+    const elements = this.tryParseElements(fileContent);
+    if (!elements) {
       return {
         filePath,
         title,
@@ -5096,6 +5186,9 @@ var DiagramExtractor = class {
         rawTextContent: `[DIAGRAM] ${title}`
       };
     }
+    return this.buildDiagram(filePath, title, elements);
+  }
+  buildDiagram(filePath, title, elements) {
     const boundTextIds = /* @__PURE__ */ new Set();
     for (const el of elements) {
       if (el.boundElements) {
@@ -6344,9 +6437,22 @@ tags: [${tags.join(", ")}]
       const file = this.app.vault.getAbstractFileByPath(filePath);
       if (!file || !(file instanceof import_obsidian7.TFile))
         return { content: `Diagram not found: ${filePath}` };
-      const content = await this.app.vault.read(file);
-      const extracted = this.diagramExtractor.extract(filePath, content);
-      return {
+      const isDiagramFile = await this.excalidraw.isExcalidrawFile(filePath);
+      if (!isDiagramFile) {
+        return {
+          content: `File is not an Excalidraw diagram: ${filePath}. Use a .excalidraw file or an Excalidraw markdown note.`
+        };
+      }
+      const elements = this.excalidraw ? await this.excalidraw.getDecompressedElements(filePath) : null;
+      const extracted = elements ? this.diagramExtractor.extractFromElements(filePath, elements) : this.diagramExtractor.extract(
+        filePath,
+        await this.app.vault.read(file)
+      );
+      const parseFailed = extracted.summary.startsWith("[Parse error]");
+      const activeDiagramPath = this.session.activeFile?.isDiagram === true ? this.session.activeFile.path : null;
+      const summary = parseFailed && activeDiagramPath === filePath ? "" : extracted.summary;
+      const pngBase64 = this.excalidraw ? await this.excalidraw.exportToPNG(filePath) : null;
+      const result = {
         content: JSON.stringify(
           {
             title: extracted.title,
@@ -6355,12 +6461,25 @@ tags: [${tags.join(", ")}]
             nodes: extracted.nodes,
             edges: extracted.edges,
             freeText: extracted.freeText,
-            summary: extracted.summary
+            summary
           },
           null,
           2
         )
       };
+      if (pngBase64) {
+        result.images = [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/png",
+              data: pngBase64
+            }
+          }
+        ];
+      }
+      return result;
     } catch (e) {
       return {
         content: `Error reading diagram: ${e instanceof Error ? e.message : String(e)}`
@@ -6986,23 +7105,52 @@ function getExcalidrawAPI(app) {
   const plugins = app.plugins?.plugins;
   return plugins?.["obsidian-excalidraw-plugin"]?.ea ?? null;
 }
-var ExcalidrawAdapter = class {
+var ExcalidrawAdapter = class _ExcalidrawAdapter {
   constructor(app) {
     this.app = app;
+  }
+  static TRANSPARENT_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAwUBAO9n8L8AAAAASUVORK5CYII=";
+  static MAX_IMAGE_BYTES = 45e5;
+  looksLikeExcalidrawMarkdown(content) {
+    if (/^---[\s\S]*?\nexcalidraw-plugin\s*:\s*(?:parsed|raw|true|1)\b[\s\S]*?---/im.test(
+      content
+    )) {
+      return true;
+    }
+    if (/```\s*compressed-json\b/i.test(content)) return true;
+    if (/```\s*json\b[\s\S]*?"type"\s*:\s*"excalidraw"/i.test(content))
+      return true;
+    if (/\bexcalidraw-plugin\s*:/i.test(content) && /#\s*Text\s+Elements\b/i.test(content))
+      return true;
+    return false;
+  }
+  async isExcalidrawFile(filePath) {
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof import_obsidian10.TFile)) return false;
+    if (file.extension === "excalidraw") return true;
+    if (file.extension !== "md") return false;
+    const cache = this.app.metadataCache.getFileCache(file);
+    const frontmatter = cache?.frontmatter ?? {};
+    const marker = String(frontmatter["excalidraw-plugin"] ?? "").toLowerCase().trim();
+    if (["parsed", "raw", "true", "1"].includes(marker)) return true;
+    const content = await this.app.vault.cachedRead(file);
+    return this.looksLikeExcalidrawMarkdown(content);
   }
   get isAvailable() {
     return getExcalidrawAPI(this.app) !== null;
   }
   async getElementsFromFile(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file || !(file instanceof import_obsidian10.TFile)) throw new Error(`File not found: ${filePath}`);
+    if (!file || !(file instanceof import_obsidian10.TFile))
+      throw new Error(`File not found: ${filePath}`);
     const content = await this.app.vault.read(file);
     const parsed = JSON.parse(content);
     return parsed.elements ?? [];
   }
   async readFile(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file || !(file instanceof import_obsidian10.TFile)) throw new Error(`File not found: ${filePath}`);
+    if (!file || !(file instanceof import_obsidian10.TFile))
+      throw new Error(`File not found: ${filePath}`);
     const content = await this.app.vault.read(file);
     return JSON.parse(content);
   }
@@ -7033,21 +7181,227 @@ var ExcalidrawAdapter = class {
       return false;
     }
   }
+  getEA() {
+    const plugin = this.app.plugins?.plugins?.["obsidian-excalidraw-plugin"];
+    return plugin?.ea ?? null;
+  }
+  arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 32768;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+  }
+  async blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(String(reader.result).split(",")[1] ?? "");
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+  normalizeBase64(base64) {
+    return base64.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  }
+  byteLengthFromBase64(base64) {
+    const normalized = this.normalizeBase64(base64);
+    const padding = normalized.endsWith("==") ? 2 : normalized.endsWith("=") ? 1 : 0;
+    return Math.max(0, Math.floor(normalized.length * 3 / 4) - padding);
+  }
+  isPngBase64(base64) {
+    try {
+      const normalized = this.normalizeBase64(base64);
+      let bytes = [];
+      if (typeof atob === "function") {
+        const head = atob(normalized.slice(0, 24));
+        bytes = Array.from(head, (c) => c.charCodeAt(0));
+      } else if (typeof Buffer !== "undefined") {
+        bytes = Array.from(
+          Buffer.from(normalized.slice(0, 24), "base64").subarray(0, 8)
+        );
+      } else {
+        return false;
+      }
+      const sig = [137, 80, 78, 71, 13, 10, 26, 10];
+      return sig.every((b, i) => bytes[i] === b);
+    } catch {
+      return false;
+    }
+  }
+  validatePngBase64(base64) {
+    if (!base64) return null;
+    const normalized = this.normalizeBase64(base64);
+    if (!/^[A-Za-z0-9+/=]+$/.test(normalized)) return null;
+    if (this.byteLengthFromBase64(normalized) > _ExcalidrawAdapter.MAX_IMAGE_BYTES) {
+      return null;
+    }
+    return this.isPngBase64(normalized) ? normalized : null;
+  }
+  extractBase64FromDataUrl(dataUrl) {
+    const match = /^data:image\/png;base64,(.+)$/i.exec(dataUrl.trim());
+    if (!match) return null;
+    return this.validatePngBase64(match[1]);
+  }
+  async toBase64FromPngResult(result) {
+    if (!result) return null;
+    if (typeof result === "string") {
+      if (result.startsWith("data:image/")) {
+        return this.extractBase64FromDataUrl(result);
+      }
+      if (/^[A-Za-z0-9+/=\r\n]+$/.test(result)) {
+        return this.validatePngBase64(result);
+      }
+      return null;
+    }
+    if (result instanceof Blob) {
+      const b64 = await this.blobToBase64(result);
+      return this.validatePngBase64(b64);
+    }
+    if (result instanceof ArrayBuffer) {
+      return this.validatePngBase64(this.arrayBufferToBase64(result));
+    }
+    if (ArrayBuffer.isView(result)) {
+      const view = result;
+      const sliced = view.buffer.slice(
+        view.byteOffset,
+        view.byteOffset + view.byteLength
+      );
+      return this.validatePngBase64(this.arrayBufferToBase64(sliced));
+    }
+    if (Array.isArray(result)) {
+      for (const item of result) {
+        const b64 = await this.toBase64FromPngResult(item);
+        if (b64) return b64;
+      }
+      return null;
+    }
+    if (typeof result === "object") {
+      const obj = result;
+      if (typeof obj.dataURL === "string") {
+        return this.extractBase64FromDataUrl(obj.dataURL);
+      }
+      if (typeof obj.base64 === "string") {
+        return this.validatePngBase64(obj.base64);
+      }
+      if (obj.blob instanceof Blob) {
+        const b64 = await this.blobToBase64(obj.blob);
+        return this.validatePngBase64(b64);
+      }
+      if (obj.file instanceof Blob) {
+        const b64 = await this.blobToBase64(obj.file);
+        return this.validatePngBase64(b64);
+      }
+    }
+    return null;
+  }
+  buildPngCandidatePaths(filePath) {
+    const withoutExcalidrawMd = filePath.replace(/\.excalidraw\.md$/i, "");
+    const withoutMd = filePath.replace(/\.md$/i, "");
+    const withoutExcalidraw = filePath.replace(/\.excalidraw$/i, "");
+    return Array.from(
+      /* @__PURE__ */ new Set([
+        `${withoutExcalidrawMd}.png`,
+        `${withoutMd}.png`,
+        `${withoutExcalidraw}.png`,
+        `${filePath}.png`
+      ])
+    );
+  }
+  async readPngFromVault(filePath) {
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof import_obsidian10.TFile)) return null;
+    if (file.extension.toLowerCase() !== "png") return null;
+    try {
+      const binary = await this.app.vault.readBinary(file);
+      return this.validatePngBase64(this.arrayBufferToBase64(binary));
+    } catch {
+      return null;
+    }
+  }
+  async setTargetViewForFile(ea, filePath) {
+    const leaves = this.app.workspace.getLeavesOfType("excalidraw");
+    const leaf = leaves.find((l) => {
+      const viewFile = l.view.file;
+      return viewFile?.path === filePath;
+    });
+    if (leaf) ea.targetView = leaf.view;
+  }
+  async getDecompressedElements(filePath) {
+    const ea = this.getEA();
+    if (!ea?.reset || !ea?.loadFile || !ea?.getElements) return null;
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof import_obsidian10.TFile)) return null;
+    try {
+      await this.setTargetViewForFile(ea, filePath);
+      ea.reset();
+      try {
+        await ea.loadFile(file);
+      } catch {
+        await ea.loadFile(file.path);
+      }
+      return ea.getElements() ?? null;
+    } catch {
+      return null;
+    }
+  }
+  async exportToPNG(filePath) {
+    const ea = this.getEA();
+    if (!ea?.createPNG) return null;
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof import_obsidian10.TFile)) return null;
+    const scales = [1, 0.8, 0.5];
+    await this.setTargetViewForFile(ea, filePath);
+    for (const scale of scales) {
+      const png = await this.toBase64FromPngResult(await ea.createPNG(void 0, scale));
+      if (png && this.byteLengthFromBase64(png) > 512) return png;
+      const png2 = await this.toBase64FromPngResult(await ea.createPNG(file.path, scale));
+      if (png2 && this.byteLengthFromBase64(png2) > 512) return png2;
+    }
+    if (ea.reset && ea.loadFile) {
+      try {
+        ea.reset();
+        try {
+          await ea.loadFile(file);
+        } catch {
+          await ea.loadFile(file.path);
+        }
+        await this.setTargetViewForFile(ea, filePath);
+        for (const scale of scales) {
+          const png = await this.toBase64FromPngResult(await ea.createPNG(void 0, scale));
+          if (png && this.byteLengthFromBase64(png) > 512) return png;
+        }
+      } catch {
+      }
+    }
+    for (const candidate of this.buildPngCandidatePaths(filePath)) {
+      const png = await this.readPngFromVault(candidate);
+      if (png) return png;
+    }
+    return null;
+  }
 };
 
 // src/excalidraw/DiagramIndexer.ts
 var import_obsidian11 = require("obsidian");
 var DiagramIndexer = class {
-  constructor(app, store) {
+  constructor(app, store, excalidraw) {
     this.app = app;
     this.store = store;
+    this.excalidraw = excalidraw;
   }
   extractor = new DiagramExtractor();
   indexing = false;
   async reindexAll() {
     if (this.indexing) return;
     this.indexing = true;
-    const files = this.app.vault.getFiles().filter((f) => f.path.endsWith(".excalidraw"));
+    const files = this.app.vault.getFiles().filter(
+      (f) => f.path.endsWith(".excalidraw") || f.path.endsWith(".excalidraw.md")
+    );
     for (const file of files) {
       await this.reindexFile(file.path);
     }
@@ -7057,8 +7411,8 @@ var DiagramIndexer = class {
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath);
       if (!(file instanceof import_obsidian11.TFile)) return;
-      const content = await this.app.vault.read(file);
-      const extracted = this.extractor.extract(filePath, content);
+      const elements = this.excalidraw ? await this.excalidraw.getDecompressedElements(filePath) : null;
+      const extracted = elements ? this.extractor.extractFromElements(filePath, elements) : this.extractor.extract(filePath, await this.app.vault.read(file));
       const embedding = await embed(extracted.rawTextContent);
       this.store.upsertDiagram({
         id: `diagram:${filePath}`,
@@ -7087,17 +7441,20 @@ var DiagramWatcher = class {
   timers = /* @__PURE__ */ new Map();
   register() {
     this.app.vault.on("create", (f) => {
-      if (f.path.endsWith(".excalidraw")) this.debounce(f.path);
+      if (this.isExcalidrawPath(f.path)) this.debounce(f.path);
     });
     this.app.vault.on("modify", (f) => {
-      if (f.path.endsWith(".excalidraw")) this.debounce(f.path);
+      if (this.isExcalidrawPath(f.path)) this.debounce(f.path);
     });
     this.app.vault.on("delete", (f) => {
-      if (f.path.endsWith(".excalidraw")) {
+      if (this.isExcalidrawPath(f.path)) {
         this.cancelDebounce(f.path);
         this.indexer.removeFromIndex(f.path);
       }
     });
+  }
+  isExcalidrawPath(path) {
+    return path.endsWith(".excalidraw") || path.endsWith(".excalidraw.md");
   }
   debounce(path) {
     this.cancelDebounce(path);
@@ -7438,21 +7795,46 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       return;
     }
     console.debug("[ThoughtAgent] Excalidraw integration enabled.");
-    this.diagramIndexer = new DiagramIndexer(this.app, this.vectorStore);
+    this.diagramIndexer = new DiagramIndexer(
+      this.app,
+      this.vectorStore,
+      this.excalidrawAdapter
+    );
     this.diagramWatcher = new DiagramWatcher(this.app, this.diagramIndexer);
     if (this.settings.diagramWatcherEnabled) this.diagramWatcher.register();
     void this.diagramIndexer.reindexAll();
     this.wireAgentLoop();
   }
   registerActiveFileTracker() {
+    const diagramExtractor = new DiagramExtractor();
     const setActiveFile = async (file) => {
-      if (!file || file.extension !== "md") return;
-      const content = await this.app.vault.cachedRead(file);
-      const activeFile = { path: file.path, content: content.slice(0, 500) };
-      if (this.session.activeFile?.path === activeFile.path && this.session.activeFile?.content === activeFile.content)
-        return;
-      this.session = { ...this.session, activeFile };
-      this.getChatView()?.updateSession(this.session);
+      if (!file) return;
+      const isDiagramFile = await this.excalidrawAdapter.isExcalidrawFile(
+        file.path
+      );
+      if (isDiagramFile) {
+        const elements = this.excalidrawAdapter.isAvailable ? await this.excalidrawAdapter.getDecompressedElements(file.path) : null;
+        const extracted = elements ? diagramExtractor.extractFromElements(file.path, elements) : diagramExtractor.extract(
+          file.path,
+          await this.app.vault.cachedRead(file)
+        );
+        const activeFile = {
+          path: file.path,
+          content: extracted.rawTextContent.slice(0, 500),
+          isDiagram: true
+        };
+        if (this.session.activeFile?.path === activeFile.path && this.session.activeFile?.isDiagram === true && this.session.activeFile?.content === activeFile.content)
+          return;
+        this.session = { ...this.session, activeFile };
+        this.getChatView()?.updateSession(this.session);
+      } else if (file.extension === "md") {
+        const content = await this.app.vault.cachedRead(file);
+        const activeFile = { path: file.path, content: content.slice(0, 500) };
+        if (this.session.activeFile?.path === activeFile.path && this.session.activeFile?.content === activeFile.content)
+          return;
+        this.session = { ...this.session, activeFile };
+        this.getChatView()?.updateSession(this.session);
+      }
     };
     const clearActiveFile = () => {
       if (this.session.activeFile === null) return;
@@ -7472,6 +7854,11 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
         }
         const viewType = leaf.view?.getViewType?.();
         if (viewType === "markdown") return;
+        if (viewType === "excalidraw") {
+          const file = leaf.view.file ?? null;
+          void setActiveFile(file);
+          return;
+        }
         if (viewType === CHAT_VIEW_TYPE) return;
         clearActiveFile();
       })
@@ -7499,7 +7886,8 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       provider,
       executor,
       this.settings.maxIterations,
-      excalidrawAvailable
+      excalidrawAvailable,
+      excalidrawAvailable ? this.excalidrawAdapter : void 0
     );
     this.getChatView()?.setAgentLoop(loop);
   }

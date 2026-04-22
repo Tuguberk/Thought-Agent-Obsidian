@@ -20,6 +20,10 @@ export class AnthropicProvider implements LLMProvider {
     return true;
   }
 
+  supportsMultimodalToolResults(): boolean {
+    return true;
+  }
+
   async chat(
     messages: Message[],
     tools: Tool[],

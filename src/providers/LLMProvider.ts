@@ -13,7 +13,7 @@ export interface ToolUseBlock {
 export interface ToolResultBlock {
   type: "tool_result";
   tool_use_id: string;
-  content: string;
+  content: string | ContentBlock[];
 }
 
 export interface ImageBlock {
@@ -60,4 +60,5 @@ export interface LLMProvider {
     systemPrompt: string,
   ): Promise<LLMResponse>;
   supportsNativeToolUse(): boolean;
+  supportsMultimodalToolResults(): boolean;
 }

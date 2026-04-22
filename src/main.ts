@@ -1,10 +1,4 @@
-import {
-  Plugin,
-  TFile,
-  Notice,
-  FileSystemAdapter,
-  requestUrl,
-} from "obsidian";
+import { Plugin, TFile, Notice, FileSystemAdapter, requestUrl } from "obsidian";
 import {
   AIAgentSettingTab,
   DEFAULT_SETTINGS,
@@ -30,6 +24,7 @@ import type { PendingChange } from "./changes/PendingChange";
 import { ExcalidrawAdapter } from "./excalidraw/ExcalidrawAdapter";
 import { DiagramIndexer } from "./excalidraw/DiagramIndexer";
 import { DiagramWatcher } from "./excalidraw/DiagramWatcher";
+import { DiagramExtractor } from "./excalidraw/DiagramExtractor";
 
 type ChatModelContextListener = () => void;
 
@@ -412,7 +407,11 @@ export default class AIAgentPlugin extends Plugin {
       return;
     }
     console.debug("[ThoughtAgent] Excalidraw integration enabled.");
-    this.diagramIndexer = new DiagramIndexer(this.app, this.vectorStore);
+    this.diagramIndexer = new DiagramIndexer(
+      this.app,
+      this.vectorStore,
+      this.excalidrawAdapter,
+    );
     this.diagramWatcher = new DiagramWatcher(this.app, this.diagramIndexer);
     if (this.settings.diagramWatcherEnabled) this.diagramWatcher.register();
     void this.diagramIndexer.reindexAll();
@@ -421,17 +420,49 @@ export default class AIAgentPlugin extends Plugin {
   }
 
   private registerActiveFileTracker(): void {
+    const diagramExtractor = new DiagramExtractor();
+
     const setActiveFile = async (file: TFile | null) => {
-      if (!file || file.extension !== "md") return;
-      const content = await this.app.vault.cachedRead(file);
-      const activeFile = { path: file.path, content: content.slice(0, 500) };
-      if (
-        this.session.activeFile?.path === activeFile.path &&
-        this.session.activeFile?.content === activeFile.content
-      )
-        return;
-      this.session = { ...this.session, activeFile };
-      this.getChatView()?.updateSession(this.session);
+      if (!file) return;
+
+      const isDiagramFile = await this.excalidrawAdapter.isExcalidrawFile(
+        file.path,
+      );
+
+      if (isDiagramFile) {
+        const elements = this.excalidrawAdapter.isAvailable
+          ? await this.excalidrawAdapter.getDecompressedElements(file.path)
+          : null;
+        const extracted = elements
+          ? diagramExtractor.extractFromElements(file.path, elements)
+          : diagramExtractor.extract(
+              file.path,
+              await this.app.vault.cachedRead(file),
+            );
+        const activeFile = {
+          path: file.path,
+          content: extracted.rawTextContent.slice(0, 500),
+          isDiagram: true as const,
+        };
+        if (
+          this.session.activeFile?.path === activeFile.path &&
+          this.session.activeFile?.isDiagram === true &&
+          this.session.activeFile?.content === activeFile.content
+        )
+          return;
+        this.session = { ...this.session, activeFile };
+        this.getChatView()?.updateSession(this.session);
+      } else if (file.extension === "md") {
+        const content = await this.app.vault.cachedRead(file);
+        const activeFile = { path: file.path, content: content.slice(0, 500) };
+        if (
+          this.session.activeFile?.path === activeFile.path &&
+          this.session.activeFile?.content === activeFile.content
+        )
+          return;
+        this.session = { ...this.session, activeFile };
+        this.getChatView()?.updateSession(this.session);
+      }
     };
 
     const clearActiveFile = () => {
@@ -454,6 +485,11 @@ export default class AIAgentPlugin extends Plugin {
         }
         const viewType = leaf.view?.getViewType?.();
         if (viewType === "markdown") return;
+        if (viewType === "excalidraw") {
+          const file = (leaf.view as unknown as { file?: TFile }).file ?? null;
+          void setActiveFile(file);
+          return;
+        }
         if (viewType === CHAT_VIEW_TYPE) return;
         clearActiveFile();
       }),
@@ -485,6 +521,7 @@ export default class AIAgentPlugin extends Plugin {
       executor,
       this.settings.maxIterations,
       excalidrawAvailable,
+      excalidrawAvailable ? this.excalidrawAdapter : undefined,
     );
     this.getChatView()?.setAgentLoop(loop);
   }

@@ -1,5 +1,6 @@
 import { App, TFile } from 'obsidian'
 import { DiagramExtractor } from './DiagramExtractor'
+import type { ExcalidrawAdapter } from './ExcalidrawAdapter'
 import { embed } from '../retrieval/Embedder'
 import type { VectorStore } from '../retrieval/VectorStore'
 
@@ -10,12 +11,15 @@ export class DiagramIndexer {
   constructor(
     private app: App,
     private store: VectorStore,
+    private excalidraw?: ExcalidrawAdapter,
   ) {}
 
   async reindexAll(): Promise<void> {
     if (this.indexing) return
     this.indexing = true
-    const files = this.app.vault.getFiles().filter((f) => f.path.endsWith('.excalidraw'))
+    const files = this.app.vault.getFiles().filter((f) =>
+      f.path.endsWith('.excalidraw') || f.path.endsWith('.excalidraw.md')
+    )
     for (const file of files) {
       await this.reindexFile(file.path)
     }
@@ -26,8 +30,16 @@ export class DiagramIndexer {
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath)
       if (!(file instanceof TFile)) return
-      const content = await this.app.vault.read(file)
-      const extracted = this.extractor.extract(filePath, content)
+
+      // Try EA API first (handles compressed format), fall back to raw parse
+      const elements = this.excalidraw
+        ? await this.excalidraw.getDecompressedElements(filePath)
+        : null
+
+      const extracted = elements
+        ? this.extractor.extractFromElements(filePath, elements)
+        : this.extractor.extract(filePath, await this.app.vault.read(file))
+
       const embedding = await embed(extracted.rawTextContent)
       this.store.upsertDiagram({
         id: `diagram:${filePath}`,

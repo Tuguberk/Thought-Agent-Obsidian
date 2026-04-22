@@ -29,7 +29,9 @@ export function buildSystemPrompt(
   const constraintSection = sessionContextToPrompt(session);
 
   const activeFileHeader = session.activeFile
-    ? `CURRENTLY OPEN NOTE: "${session.activeFile.path}"\nWhen the user says "this", "it", "the file", "bu", "bunu", "bunu", "bu dosya", or gives a vague command like "make it longer", "edit this", "detaylandır", "düzenle", "güncelle" — they mean THIS note. Act on it directly without asking for clarification.\n\n`
+    ? session.activeFile.isDiagram
+      ? `CURRENTLY OPEN DIAGRAM: "${session.activeFile.path}"\nWhen the user says "this", "it", "the diagram", "bu", "bunu", "bu diyagram", or gives a vague command — they mean THIS diagram. The diagram image is attached to the user message so you can see it directly. Call read_diagram on it for structured node/edge data.\n\n`
+      : `CURRENTLY OPEN NOTE: "${session.activeFile.path}"\nWhen the user says "this", "it", "the file", "bu", "bunu", "bu dosya", or gives a vague command like "make it longer", "edit this", "detaylandır", "düzenle", "güncelle" — they mean THIS note. Act on it directly without asking for clarification.\n\n`
     : "";
 
   return `${activeFileHeader}You are an AI knowledge assistant integrated into the user's Obsidian vault. Your job is to help them understand, navigate, and expand their personal knowledge graph.
