@@ -1,6 +1,5 @@
 import {
   Plugin,
-  WorkspaceLeaf,
   TFile,
   Notice,
   FileSystemAdapter,
@@ -132,7 +131,7 @@ export default class AIAgentPlugin extends Plugin {
             `Connection OK: ${(text as { type: "text"; text: string })?.text ?? "no response"}`,
           );
         } catch (e) {
-          new Notice(`Connection failed: ${e.message}`);
+          new Notice(`Connection failed: ${(e as Error).message}`);
         }
       },
     });
@@ -251,7 +250,7 @@ export default class AIAgentPlugin extends Plugin {
         this.removePending(change);
         approved++;
       } catch (e) {
-        new Notice(`Failed to apply change: ${e.message}`);
+        new Notice(`Failed to apply change: ${(e as Error).message}`);
       }
     }
 
@@ -291,7 +290,26 @@ export default class AIAgentPlugin extends Plugin {
 
   private async initEmbedderIfNeeded(): Promise<void> {
     try {
-      await initEmbedder(this.settings.embeddingModel, this.getPluginDir());
+      const s = this.settings;
+      if (s.embeddingProvider === "openai") {
+        await initEmbedder({
+          provider: "openai",
+          apiKey: s.openaiEmbeddingApiKey,
+          apiModel: s.openaiEmbeddingModel,
+        });
+      } else if (s.embeddingProvider === "google") {
+        await initEmbedder({
+          provider: "google",
+          apiKey: s.googleEmbeddingApiKey,
+          apiModel: s.googleEmbeddingModel,
+        });
+      } else {
+        await initEmbedder({
+          provider: "local",
+          localModel: s.embeddingModel,
+          pluginDir: this.getPluginDir(),
+        });
+      }
     } catch {
       // user notified by initEmbedder
     }

@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice, requestUrl } from "obsidian";
+import { App, Platform, PluginSettingTab, Setting, Notice, requestUrl } from "obsidian";
 import type AIAgentPlugin from "./main";
 
 export interface AIAgentSettings {
@@ -9,10 +9,18 @@ export interface AIAgentSettings {
   lmstudioModel: string;
   lmstudioMaxTokens: number;
   maxIterations: number;
-  embeddingModel: string;
+  // Embedding
+  embeddingProvider: "local" | "openai" | "google";
+  embeddingModel: string;           // local Xenova model
+  openaiEmbeddingApiKey: string;
+  openaiEmbeddingModel: string;
+  googleEmbeddingApiKey: string;
+  googleEmbeddingModel: string;
+  // Index metadata
   indexedNotesCount: number;
   indexedChunksCount: number;
   lastIndexedAt: string | null;
+  // Excalidraw
   excalidrawEnabled: boolean;
   diagramDefaultFolder: string;
   diagramWatcherEnabled: boolean;
@@ -27,7 +35,12 @@ export const DEFAULT_SETTINGS: AIAgentSettings = {
   lmstudioModel: "",
   lmstudioMaxTokens: 16384,
   maxIterations: 15,
+  embeddingProvider: "local",
   embeddingModel: "Xenova/all-MiniLM-L6-v2",
+  openaiEmbeddingApiKey: "",
+  openaiEmbeddingModel: "text-embedding-3-small",
+  googleEmbeddingApiKey: "",
+  googleEmbeddingModel: "text-embedding-004",
   indexedNotesCount: 0,
   indexedChunksCount: 0,
   lastIndexedAt: null,
@@ -88,10 +101,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
         .setName("Model")
         .setDesc("Claude model to use")
         .addDropdown((drop) => {
-          drop.addOption(
-            "claude-sonnet-4-6",
-            "Claude Sonnet 4.6 (recommended)",
-          );
+          drop.addOption("claude-sonnet-4-6", "Claude Sonnet 4.6 (recommended)");
           drop.addOption("claude-opus-4-7", "Claude Opus 4.7");
           drop.addOption("claude-haiku-4-5-20251001", "Claude Haiku 4.5");
           drop.setValue(this.plugin.settings.model);
@@ -108,9 +118,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Base URL")
-        .setDesc(
-          "LM Studio local server URL (default: http://localhost:1234/v1)",
-        )
+        .setDesc("LM Studio local server URL (default: http://localhost:1234/v1)")
         .addText((text) => {
           text
             .setPlaceholder("http://localhost:1234/v1")
@@ -123,9 +131,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Model name")
-        .setDesc(
-          "The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)",
-        )
+        .setDesc("The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)")
         .addText((text) => {
           text
             .setPlaceholder("leave empty to use loaded model")
@@ -138,9 +144,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Max tokens")
-        .setDesc(
-          "Maximum tokens per response (default: 16384). Increase if notes are being cut off.",
-        )
+        .setDesc("Maximum tokens per response (default: 16384). Increase if notes are being cut off.")
         .addText((text) => {
           text
             .setPlaceholder("16384")
@@ -168,9 +172,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
               if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
               const data = res.json as { data: Array<{ id: string }> };
               const models = data.data.map((m) => m.id).join(", ");
-              new Notice(
-                `LM Studio connected. Models: ${models || "(none loaded)"}`,
-              );
+              new Notice(`LM Studio connected. Models: ${models || "(none loaded)"}`);
             } catch (e) {
               new Notice(`Cannot reach LM Studio: ${e.message}`);
             } finally {
@@ -180,7 +182,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
         });
     }
 
-    // --- Shared ---
+    // --- Agent ---
     new Setting(containerEl).setName("Agent").setHeading();
 
     new Setting(containerEl)
@@ -197,23 +199,165 @@ export class AIAgentSettingTab extends PluginSettingTab {
           });
       });
 
+    // --- Embeddings ---
     new Setting(containerEl).setName("Embeddings").setHeading();
 
+    if (Platform.isMobile && this.plugin.settings.embeddingProvider === "local") {
+      containerEl.createEl("p", {
+        text: "⚠️ Local embedding model does not work on mobile. Semantic search is disabled. Select OpenAI or Google below to enable it.",
+        cls: "setting-item-description",
+      });
+    }
+
     new Setting(containerEl)
-      .setName("Embedding model")
-      .setDesc("Local embedding model (downloads ~25MB on first use)")
+      .setName("Embedding provider")
+      .setDesc("Source for text embeddings used in semantic search. Changing provider requires re-indexing the vault.")
       .addDropdown((drop) => {
-        drop.addOption("Xenova/all-MiniLM-L6-v2", "all-MiniLM-L6-v2 (384-dim)");
-        drop.setValue(this.plugin.settings.embeddingModel);
+        drop.addOption("local", "Local (default, desktop only)");
+        drop.addOption("openai", "OpenAI");
+        drop.addOption("google", "Google");
+        drop.setValue(this.plugin.settings.embeddingProvider);
         drop.onChange(async (value) => {
-          this.plugin.settings.embeddingModel = value;
+          this.plugin.settings.embeddingProvider = value as "local" | "openai" | "google";
           await this.plugin.saveSettings();
+          this.display();
         });
       });
 
+    if (this.plugin.settings.embeddingProvider === "local") {
+      new Setting(containerEl)
+        .setName("Local embedding model")
+        .setDesc("Downloads ~25 MB on first use. Desktop only.")
+        .addDropdown((drop) => {
+          drop.addOption("Xenova/all-MiniLM-L6-v2", "all-MiniLM-L6-v2 (384-dim, fast)");
+          drop.setValue(this.plugin.settings.embeddingModel);
+          drop.onChange(async (value) => {
+            this.plugin.settings.embeddingModel = value;
+            await this.plugin.saveSettings();
+          });
+        });
+    }
+
+    if (this.plugin.settings.embeddingProvider === "openai") {
+      new Setting(containerEl)
+        .setName("OpenAI API key")
+        .setDesc("Used only for embeddings. Can be the same as your main API key.")
+        .addText((text) => {
+          text
+            .setPlaceholder("sk-...")
+            .setValue(this.plugin.settings.openaiEmbeddingApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.openaiEmbeddingApiKey = value;
+              await this.plugin.saveSettings();
+            });
+          text.inputEl.type = "password";
+        });
+
+      new Setting(containerEl)
+        .setName("OpenAI embedding model")
+        .addDropdown((drop) => {
+          drop.addOption("text-embedding-3-small", "text-embedding-3-small (1536-dim, recommended)");
+          drop.addOption("text-embedding-3-large", "text-embedding-3-large (3072-dim, best quality)");
+          drop.addOption("text-embedding-ada-002", "text-embedding-ada-002 (1536-dim, legacy)");
+          drop.setValue(this.plugin.settings.openaiEmbeddingModel);
+          drop.onChange(async (value) => {
+            this.plugin.settings.openaiEmbeddingModel = value;
+            await this.plugin.saveSettings();
+          });
+        });
+
+      new Setting(containerEl)
+        .setName("Test OpenAI embedding")
+        .addButton((btn) => {
+          btn.setButtonText("Test").onClick(async () => {
+            btn.setButtonText("Testing...").setDisabled(true);
+            try {
+              const res = await requestUrl({
+                url: "https://api.openai.com/v1/embeddings",
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${this.plugin.settings.openaiEmbeddingApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: this.plugin.settings.openaiEmbeddingModel,
+                  input: "test",
+                }),
+                throw: false,
+              });
+              if (res.status >= 400) throw new Error(`HTTP ${res.status}: ${res.text}`);
+              const data = res.json as { data: Array<{ embedding: number[] }> };
+              new Notice(`OpenAI embedding OK — dim: ${data.data[0].embedding.length}`);
+            } catch (e) {
+              new Notice(`OpenAI embedding failed: ${(e as Error).message}`);
+            } finally {
+              btn.setButtonText("Test").setDisabled(false);
+            }
+          });
+        });
+    }
+
+    if (this.plugin.settings.embeddingProvider === "google") {
+      new Setting(containerEl)
+        .setName("Google API key")
+        .setDesc("Gemini API key from Google AI Studio. Used only for embeddings.")
+        .addText((text) => {
+          text
+            .setPlaceholder("AIza...")
+            .setValue(this.plugin.settings.googleEmbeddingApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.googleEmbeddingApiKey = value;
+              await this.plugin.saveSettings();
+            });
+          text.inputEl.type = "password";
+        });
+
+      new Setting(containerEl)
+        .setName("Google embedding model")
+        .addDropdown((drop) => {
+          drop.addOption("text-embedding-004", "text-embedding-004 (768-dim, recommended)");
+          drop.setValue(this.plugin.settings.googleEmbeddingModel);
+          drop.onChange(async (value) => {
+            this.plugin.settings.googleEmbeddingModel = value;
+            await this.plugin.saveSettings();
+          });
+        });
+
+      new Setting(containerEl)
+        .setName("Test Google embedding")
+        .addButton((btn) => {
+          btn.setButtonText("Test").onClick(async () => {
+            btn.setButtonText("Testing...").setDisabled(true);
+            try {
+              const model = this.plugin.settings.googleEmbeddingModel;
+              const key = this.plugin.settings.googleEmbeddingApiKey;
+              const res = await requestUrl({
+                url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${key}`,
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: `models/${model}`,
+                  content: { parts: [{ text: "test" }] },
+                }),
+                throw: false,
+              });
+              if (res.status >= 400) throw new Error(`HTTP ${res.status}: ${res.text}`);
+              const data = res.json as { embedding: { values: number[] } };
+              new Notice(`Google embedding OK — dim: ${data.embedding.values.length}`);
+            } catch (e) {
+              new Notice(`Google embedding failed: ${(e as Error).message}`);
+            } finally {
+              btn.setButtonText("Test").setDisabled(false);
+            }
+          });
+        });
+    }
+
+    // --- Index status ---
     new Setting(containerEl).setName("Index status").setHeading();
 
     const statusEl = containerEl.createDiv("index-status");
+    statusEl.addClass("index-status-section");
     const lastIndexed = this.plugin.settings.lastIndexedAt
       ? new Date(this.plugin.settings.lastIndexedAt).toLocaleString()
       : "Never";
@@ -235,7 +379,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
               new Notice("Vault re-indexed successfully!");
               this.display();
             } catch (e) {
-              new Notice(`Indexing failed: ${e.message}`);
+              new Notice(`Indexing failed: ${(e as Error).message}`);
             } finally {
               btn.setButtonText("Re-index").setDisabled(false);
             }
@@ -251,20 +395,18 @@ export class AIAgentSettingTab extends PluginSettingTab {
           excalidrawAdapter?: { isAvailable: boolean };
         }
       ).excalidrawAdapter?.isAvailable ?? false;
-    const excalidrawStatusEl = containerEl.createEl("p", {
+
+    containerEl.createEl("p", {
       text: excalidrawAvailable
         ? "✅ Excalidraw plugin detected — diagram features enabled."
         : "⚠️ Excalidraw plugin not found — diagram features disabled.",
       cls: "ai-preview-meta",
     });
-    statusEl.addClass("index-status-section");
 
     if (excalidrawAvailable) {
       new Setting(containerEl)
         .setName("Enable diagram watcher")
-        .setDesc(
-          "Re-index .excalidraw files when they change (no LLM calls, no tokens consumed).",
-        )
+        .setDesc("Re-index .excalidraw files when they change (no LLM calls, no tokens consumed).")
         .addToggle((t) => {
           t.setValue(this.plugin.settings.diagramWatcherEnabled);
           t.onChange(async (v) => {
@@ -275,9 +417,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Default diagram folder")
-        .setDesc(
-          'Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.',
-        )
+        .setDesc('Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.')
         .addText((t) => {
           t.setPlaceholder("e.g. Diagrams")
             .setValue(this.plugin.settings.diagramDefaultFolder)

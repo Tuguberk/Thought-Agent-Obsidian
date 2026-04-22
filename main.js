@@ -39,7 +39,12 @@ var DEFAULT_SETTINGS = {
   lmstudioModel: "",
   lmstudioMaxTokens: 16384,
   maxIterations: 15,
+  embeddingProvider: "local",
   embeddingModel: "Xenova/all-MiniLM-L6-v2",
+  openaiEmbeddingApiKey: "",
+  openaiEmbeddingModel: "text-embedding-3-small",
+  googleEmbeddingApiKey: "",
+  googleEmbeddingModel: "text-embedding-004",
   indexedNotesCount: 0,
   indexedChunksCount: 0,
   lastIndexedAt: null,
@@ -78,10 +83,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         text.inputEl.type = "password";
       });
       new import_obsidian.Setting(containerEl).setName("Model").setDesc("Claude model to use").addDropdown((drop) => {
-        drop.addOption(
-          "claude-sonnet-4-6",
-          "Claude Sonnet 4.6 (recommended)"
-        );
+        drop.addOption("claude-sonnet-4-6", "Claude Sonnet 4.6 (recommended)");
         drop.addOption("claude-opus-4-7", "Claude Opus 4.7");
         drop.addOption("claude-haiku-4-5-20251001", "Claude Haiku 4.5");
         drop.setValue(this.plugin.settings.model);
@@ -93,25 +95,19 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     }
     if (this.plugin.settings.provider === "lmstudio") {
       new import_obsidian.Setting(containerEl).setName("LM Studio").setHeading();
-      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc(
-        "LM Studio local server URL (default: http://localhost:1234/v1)"
-      ).addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc("LM Studio local server URL (default: http://localhost:1234/v1)").addText((text) => {
         text.setPlaceholder("http://localhost:1234/v1").setValue(this.plugin.settings.lmstudioBaseUrl).onChange(async (value) => {
           this.plugin.settings.lmstudioBaseUrl = value.replace(/\/$/, "");
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Model name").setDesc(
-        "The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)"
-      ).addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Model name").setDesc("The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)").addText((text) => {
         text.setPlaceholder("leave empty to use loaded model").setValue(this.plugin.settings.lmstudioModel).onChange(async (value) => {
           this.plugin.settings.lmstudioModel = value;
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Max tokens").setDesc(
-        "Maximum tokens per response (default: 16384). Increase if notes are being cut off."
-      ).addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Max tokens").setDesc("Maximum tokens per response (default: 16384). Increase if notes are being cut off.").addText((text) => {
         text.setPlaceholder("16384").setValue(String(this.plugin.settings.lmstudioMaxTokens)).onChange(async (value) => {
           const n = parseInt(value);
           if (!isNaN(n) && n > 0) {
@@ -131,9 +127,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
             if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
             const data = res.json;
             const models = data.data.map((m) => m.id).join(", ");
-            new import_obsidian.Notice(
-              `LM Studio connected. Models: ${models || "(none loaded)"}`
-            );
+            new import_obsidian.Notice(`LM Studio connected. Models: ${models || "(none loaded)"}`);
           } catch (e) {
             new import_obsidian.Notice(`Cannot reach LM Studio: ${e.message}`);
           } finally {
@@ -150,16 +144,125 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     });
     new import_obsidian.Setting(containerEl).setName("Embeddings").setHeading();
-    new import_obsidian.Setting(containerEl).setName("Embedding model").setDesc("Local embedding model (downloads ~25MB on first use)").addDropdown((drop) => {
-      drop.addOption("Xenova/all-MiniLM-L6-v2", "all-MiniLM-L6-v2 (384-dim)");
-      drop.setValue(this.plugin.settings.embeddingModel);
+    if (import_obsidian.Platform.isMobile && this.plugin.settings.embeddingProvider === "local") {
+      containerEl.createEl("p", {
+        text: "\u26A0\uFE0F Local embedding model does not work on mobile. Semantic search is disabled. Select OpenAI or Google below to enable it.",
+        cls: "setting-item-description"
+      });
+    }
+    new import_obsidian.Setting(containerEl).setName("Embedding provider").setDesc("Source for text embeddings used in semantic search. Changing provider requires re-indexing the vault.").addDropdown((drop) => {
+      drop.addOption("local", "Local (default, desktop only)");
+      drop.addOption("openai", "OpenAI");
+      drop.addOption("google", "Google");
+      drop.setValue(this.plugin.settings.embeddingProvider);
       drop.onChange(async (value) => {
-        this.plugin.settings.embeddingModel = value;
+        this.plugin.settings.embeddingProvider = value;
         await this.plugin.saveSettings();
+        this.display();
       });
     });
+    if (this.plugin.settings.embeddingProvider === "local") {
+      new import_obsidian.Setting(containerEl).setName("Local embedding model").setDesc("Downloads ~25 MB on first use. Desktop only.").addDropdown((drop) => {
+        drop.addOption("Xenova/all-MiniLM-L6-v2", "all-MiniLM-L6-v2 (384-dim, fast)");
+        drop.setValue(this.plugin.settings.embeddingModel);
+        drop.onChange(async (value) => {
+          this.plugin.settings.embeddingModel = value;
+          await this.plugin.saveSettings();
+        });
+      });
+    }
+    if (this.plugin.settings.embeddingProvider === "openai") {
+      new import_obsidian.Setting(containerEl).setName("OpenAI API key").setDesc("Used only for embeddings. Can be the same as your main API key.").addText((text) => {
+        text.setPlaceholder("sk-...").setValue(this.plugin.settings.openaiEmbeddingApiKey).onChange(async (value) => {
+          this.plugin.settings.openaiEmbeddingApiKey = value;
+          await this.plugin.saveSettings();
+        });
+        text.inputEl.type = "password";
+      });
+      new import_obsidian.Setting(containerEl).setName("OpenAI embedding model").addDropdown((drop) => {
+        drop.addOption("text-embedding-3-small", "text-embedding-3-small (1536-dim, recommended)");
+        drop.addOption("text-embedding-3-large", "text-embedding-3-large (3072-dim, best quality)");
+        drop.addOption("text-embedding-ada-002", "text-embedding-ada-002 (1536-dim, legacy)");
+        drop.setValue(this.plugin.settings.openaiEmbeddingModel);
+        drop.onChange(async (value) => {
+          this.plugin.settings.openaiEmbeddingModel = value;
+          await this.plugin.saveSettings();
+        });
+      });
+      new import_obsidian.Setting(containerEl).setName("Test OpenAI embedding").addButton((btn) => {
+        btn.setButtonText("Test").onClick(async () => {
+          btn.setButtonText("Testing...").setDisabled(true);
+          try {
+            const res = await (0, import_obsidian.requestUrl)({
+              url: "https://api.openai.com/v1/embeddings",
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${this.plugin.settings.openaiEmbeddingApiKey}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                model: this.plugin.settings.openaiEmbeddingModel,
+                input: "test"
+              }),
+              throw: false
+            });
+            if (res.status >= 400) throw new Error(`HTTP ${res.status}: ${res.text}`);
+            const data = res.json;
+            new import_obsidian.Notice(`OpenAI embedding OK \u2014 dim: ${data.data[0].embedding.length}`);
+          } catch (e) {
+            new import_obsidian.Notice(`OpenAI embedding failed: ${e.message}`);
+          } finally {
+            btn.setButtonText("Test").setDisabled(false);
+          }
+        });
+      });
+    }
+    if (this.plugin.settings.embeddingProvider === "google") {
+      new import_obsidian.Setting(containerEl).setName("Google API key").setDesc("Gemini API key from Google AI Studio. Used only for embeddings.").addText((text) => {
+        text.setPlaceholder("AIza...").setValue(this.plugin.settings.googleEmbeddingApiKey).onChange(async (value) => {
+          this.plugin.settings.googleEmbeddingApiKey = value;
+          await this.plugin.saveSettings();
+        });
+        text.inputEl.type = "password";
+      });
+      new import_obsidian.Setting(containerEl).setName("Google embedding model").addDropdown((drop) => {
+        drop.addOption("text-embedding-004", "text-embedding-004 (768-dim, recommended)");
+        drop.setValue(this.plugin.settings.googleEmbeddingModel);
+        drop.onChange(async (value) => {
+          this.plugin.settings.googleEmbeddingModel = value;
+          await this.plugin.saveSettings();
+        });
+      });
+      new import_obsidian.Setting(containerEl).setName("Test Google embedding").addButton((btn) => {
+        btn.setButtonText("Test").onClick(async () => {
+          btn.setButtonText("Testing...").setDisabled(true);
+          try {
+            const model = this.plugin.settings.googleEmbeddingModel;
+            const key = this.plugin.settings.googleEmbeddingApiKey;
+            const res = await (0, import_obsidian.requestUrl)({
+              url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${key}`,
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: `models/${model}`,
+                content: { parts: [{ text: "test" }] }
+              }),
+              throw: false
+            });
+            if (res.status >= 400) throw new Error(`HTTP ${res.status}: ${res.text}`);
+            const data = res.json;
+            new import_obsidian.Notice(`Google embedding OK \u2014 dim: ${data.embedding.values.length}`);
+          } catch (e) {
+            new import_obsidian.Notice(`Google embedding failed: ${e.message}`);
+          } finally {
+            btn.setButtonText("Test").setDisabled(false);
+          }
+        });
+      });
+    }
     new import_obsidian.Setting(containerEl).setName("Index status").setHeading();
     const statusEl = containerEl.createDiv("index-status");
+    statusEl.addClass("index-status-section");
     const lastIndexed = this.plugin.settings.lastIndexedAt ? new Date(this.plugin.settings.lastIndexedAt).toLocaleString() : "Never";
     statusEl.createEl("p", {
       text: `Notes: ${this.plugin.settings.indexedNotesCount} | Chunks: ${this.plugin.settings.indexedChunksCount} | Last indexed: ${lastIndexed}`
@@ -180,24 +283,19 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     });
     new import_obsidian.Setting(containerEl).setName("Excalidraw integration").setHeading();
     const excalidrawAvailable = this.plugin.excalidrawAdapter?.isAvailable ?? false;
-    const excalidrawStatusEl = containerEl.createEl("p", {
+    containerEl.createEl("p", {
       text: excalidrawAvailable ? "\u2705 Excalidraw plugin detected \u2014 diagram features enabled." : "\u26A0\uFE0F Excalidraw plugin not found \u2014 diagram features disabled.",
       cls: "ai-preview-meta"
     });
-    statusEl.addClass("index-status-section");
     if (excalidrawAvailable) {
-      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc(
-        "Re-index .excalidraw files when they change (no LLM calls, no tokens consumed)."
-      ).addToggle((t) => {
+      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc("Re-index .excalidraw files when they change (no LLM calls, no tokens consumed).").addToggle((t) => {
         t.setValue(this.plugin.settings.diagramWatcherEnabled);
         t.onChange(async (v) => {
           this.plugin.settings.diagramWatcherEnabled = v;
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc(
-        'Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.'
-      ).addText((t) => {
+      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc('Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.').addText((t) => {
         t.setPlaceholder("e.g. Diagrams").setValue(this.plugin.settings.diagramDefaultFolder).onChange(async (v) => {
           this.plugin.settings.diagramDefaultFolder = v;
           await this.plugin.saveSettings();
@@ -4720,8 +4818,17 @@ function bm25(query, chunks, k1 = 1.5, b = 0.75) {
 // src/retrieval/HybridSearch.ts
 function hybridSearch(queryEmbedding, queryText, chunks, topK = 10) {
   if (chunks.length === 0) return [];
+  if (queryEmbedding.length === 0) {
+    const bm25Results2 = bm25(queryText, chunks);
+    bm25Results2.sort((a, b) => b.score - a.score);
+    return bm25Results2.slice(0, topK);
+  }
   const chunksWithEmbeddings = chunks.filter((c) => c.embedding && c.embedding.length > 0);
-  if (chunksWithEmbeddings.length === 0) return [];
+  if (chunksWithEmbeddings.length === 0) {
+    const bm25Results2 = bm25(queryText, chunks);
+    bm25Results2.sort((a, b) => b.score - a.score);
+    return bm25Results2.slice(0, topK);
+  }
   const semanticRaw = chunksWithEmbeddings.map((c) => cosineSimilarity(queryEmbedding, c.embedding));
   const semanticNorm = normalizeScores(semanticRaw);
   const bm25Results = bm25(queryText, chunksWithEmbeddings);
@@ -4815,17 +4922,52 @@ function mmr(candidates, finalK, lambda = 0.7) {
 // src/retrieval/Embedder.ts
 var import_obsidian6 = require("obsidian");
 var pipelineInstance = null;
-var modelName = "Xenova/all-MiniLM-L6-v2";
+var localModelName = "Xenova/all-MiniLM-L6-v2";
 var loading = false;
 var loadPromise = null;
-async function initEmbedder(model, pluginDir) {
-  if (pipelineInstance && modelName === model) return;
+var currentConfig = { provider: "local" };
+var currentConfigKey = "";
+var ready = false;
+function isEmbeddingAvailable() {
+  return ready;
+}
+async function initEmbedder(config) {
+  const key = JSON.stringify(config);
+  if (key === currentConfigKey && ready) return;
+  currentConfig = config;
+  currentConfigKey = key;
+  ready = false;
+  if (config.provider === "local") {
+    if (import_obsidian6.Platform.isMobile) {
+      new import_obsidian6.Notice(
+        "Semantic search unavailable on mobile: local embedding model requires desktop. Set an OpenAI or Google embedding provider in settings to enable it on mobile.",
+        8e3
+      );
+      return;
+    }
+    await initLocalPipeline(config.localModel ?? "Xenova/all-MiniLM-L6-v2", config.pluginDir ?? "");
+    ready = true;
+    return;
+  }
+  if (!config.apiKey) {
+    new import_obsidian6.Notice("Embedding API key not set \u2014 semantic search disabled. Add your key in Settings \u2192 Embeddings.");
+    return;
+  }
+  ready = true;
+  const providerName = config.provider === "openai" ? "OpenAI" : "Google";
+  new import_obsidian6.Notice(`Embedding provider: ${providerName} (${config.apiModel})`);
+}
+async function initLocalPipeline(model, pluginDir) {
+  if (pipelineInstance && localModelName === model) {
+    ready = true;
+    return;
+  }
   if (loading && loadPromise) return loadPromise;
-  modelName = model;
+  localModelName = model;
   loading = true;
   loadPromise = (async () => {
     try {
-      new import_obsidian6.Notice("Loading embedding model (~25MB)...");
+      new import_obsidian6.Notice("Loading embedding model (~25 MB)\u2026");
       const transformers = require(`${pluginDir}/node_modules/@xenova/transformers`);
       const pipeline = transformers.pipeline;
       const env = transformers.env;
@@ -4844,16 +4986,92 @@ async function initEmbedder(model, pluginDir) {
   return loadPromise;
 }
 async function embed(text) {
-  if (!pipelineInstance) throw new Error("Embedder not initialized");
-  const output = await pipelineInstance(text, { pooling: "mean", normalize: true });
-  return Array.from(output.data);
+  if (!ready) return [];
+  if (currentConfig.provider === "local") {
+    if (!pipelineInstance) return [];
+    const output = await pipelineInstance(text, { pooling: "mean", normalize: true });
+    return Array.from(output.data);
+  }
+  if (currentConfig.provider === "openai") {
+    const results = await embedWithOpenAI([text], currentConfig.apiKey, currentConfig.apiModel);
+    return results[0] ?? [];
+  }
+  if (currentConfig.provider === "google") {
+    return embedWithGoogle(text, currentConfig.apiKey, currentConfig.apiModel);
+  }
+  return [];
 }
 async function embedBatch(texts, onProgress) {
+  if (!ready || texts.length === 0) return texts.map(() => []);
+  if (currentConfig.provider === "openai") {
+    const CHUNK = 100;
+    const results2 = [];
+    for (let i = 0; i < texts.length; i += CHUNK) {
+      const batch = texts.slice(i, i + CHUNK);
+      const embeddings = await embedWithOpenAI(batch, currentConfig.apiKey, currentConfig.apiModel);
+      results2.push(...embeddings);
+      if (onProgress) onProgress(Math.min(i + CHUNK, texts.length), texts.length);
+    }
+    return results2;
+  }
+  if (currentConfig.provider === "google") {
+    return embedBatchWithGoogle(texts, currentConfig.apiKey, currentConfig.apiModel, onProgress);
+  }
   const results = [];
   for (let i = 0; i < texts.length; i++) {
     results.push(await embed(texts[i]));
     if (onProgress) onProgress(i + 1, texts.length);
     if (i % 10 === 0) await yieldToUI();
+  }
+  return results;
+}
+async function embedWithOpenAI(texts, apiKey, model) {
+  const res = await (0, import_obsidian6.requestUrl)({
+    url: "https://api.openai.com/v1/embeddings",
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model, input: texts }),
+    throw: false
+  });
+  if (res.status >= 400) throw new Error(`OpenAI embedding error ${res.status}: ${res.text}`);
+  const data = res.json;
+  return data.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
+}
+async function embedWithGoogle(text, apiKey, model) {
+  const res = await (0, import_obsidian6.requestUrl)({
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: `models/${model}`,
+      content: { parts: [{ text }] }
+    }),
+    throw: false
+  });
+  if (res.status >= 400) throw new Error(`Google embedding error ${res.status}: ${res.text}`);
+  const data = res.json;
+  return data.embedding.values;
+}
+async function embedBatchWithGoogle(texts, apiKey, model, onProgress) {
+  const CHUNK = 100;
+  const results = [];
+  for (let i = 0; i < texts.length; i += CHUNK) {
+    const batch = texts.slice(i, i + CHUNK);
+    const requests = batch.map((text) => ({
+      model: `models/${model}`,
+      content: { parts: [{ text }] }
+    }));
+    const res = await (0, import_obsidian6.requestUrl)({
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${apiKey}`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requests }),
+      throw: false
+    });
+    if (res.status >= 400) throw new Error(`Google batch embedding error ${res.status}: ${res.text}`);
+    const data = res.json;
+    results.push(...data.embeddings.map((e) => e.values));
+    if (onProgress) onProgress(Math.min(i + CHUNK, texts.length), texts.length);
   }
   return results;
 }
@@ -6591,13 +6809,14 @@ var Indexer = class {
     }
     this.indexing = true;
     const files = this.app.vault.getMarkdownFiles();
-    new import_obsidian8.Notice(`Indexing ${files.length} notes...`);
+    const embeddingAvailable = isEmbeddingAvailable();
+    new import_obsidian8.Notice(`Indexing ${files.length} notes${embeddingAvailable ? "" : " (keyword-only \u2014 no embedding provider)"}\u2026`);
     let done = 0;
     for (const file of files) {
       await this.indexFile(file);
       done++;
       if (done % 10 === 0) {
-        new import_obsidian8.Notice(`Indexing... ${done}/${files.length}`, 1e3);
+        new import_obsidian8.Notice(`Indexing\u2026 ${done}/${files.length}`, 1e3);
       }
     }
     this.plugin.settings.indexedNotesCount = this.store.noteCount();
@@ -6615,7 +6834,7 @@ var Indexer = class {
       const rawChunks = chunkNote(file.path, title, content);
       this.store.removeChunksForNote(file.path);
       const texts = rawChunks.map((c) => c.content);
-      const embeddings = await embedBatch(texts);
+      const embeddings = isEmbeddingAvailable() ? await embedBatch(texts) : texts.map(() => []);
       const chunks = rawChunks.map((c, i) => ({
         ...c,
         embedding: embeddings[i]
@@ -6632,7 +6851,7 @@ var Indexer = class {
       const rawChunks = chunkNote(file.path, title, content);
       this.store.removeChunksForNote(file.path);
       for (const rawChunk of rawChunks) {
-        const embedding = await embed(rawChunk.content);
+        const embedding = isEmbeddingAvailable() ? await embed(rawChunk.content) : [];
         this.store.upsertChunks([{ ...rawChunk, embedding }]);
       }
       this.plugin.settings.indexedNotesCount = this.store.noteCount();
@@ -7112,7 +7331,26 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
   }
   async initEmbedderIfNeeded() {
     try {
-      await initEmbedder(this.settings.embeddingModel, this.getPluginDir());
+      const s = this.settings;
+      if (s.embeddingProvider === "openai") {
+        await initEmbedder({
+          provider: "openai",
+          apiKey: s.openaiEmbeddingApiKey,
+          apiModel: s.openaiEmbeddingModel
+        });
+      } else if (s.embeddingProvider === "google") {
+        await initEmbedder({
+          provider: "google",
+          apiKey: s.googleEmbeddingApiKey,
+          apiModel: s.googleEmbeddingModel
+        });
+      } else {
+        await initEmbedder({
+          provider: "local",
+          localModel: s.embeddingModel,
+          pluginDir: this.getPluginDir()
+        });
+      }
     } catch {
     }
   }

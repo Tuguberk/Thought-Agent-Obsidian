@@ -1,6 +1,6 @@
 import { App, TFile, Notice } from 'obsidian'
 import { chunkNote, type Chunk } from './Chunker'
-import { embed, embedBatch } from './Embedder'
+import { embed, embedBatch, isEmbeddingAvailable } from './Embedder'
 import type { VectorStore } from './VectorStore'
 import type AIAgentPlugin from '../main'
 
@@ -24,14 +24,15 @@ export class Indexer {
 
     this.indexing = true
     const files = this.app.vault.getMarkdownFiles()
-    new Notice(`Indexing ${files.length} notes...`)
+    const embeddingAvailable = isEmbeddingAvailable()
+    new Notice(`Indexing ${files.length} notes${embeddingAvailable ? '' : ' (keyword-only — no embedding provider)'}…`)
 
     let done = 0
     for (const file of files) {
       await this.indexFile(file)
       done++
       if (done % 10 === 0) {
-        new Notice(`Indexing... ${done}/${files.length}`, 1000)
+        new Notice(`Indexing… ${done}/${files.length}`, 1000)
       }
     }
 
@@ -54,7 +55,9 @@ export class Indexer {
       this.store.removeChunksForNote(file.path)
 
       const texts = rawChunks.map(c => c.content)
-      const embeddings = await embedBatch(texts)
+      const embeddings = isEmbeddingAvailable()
+        ? await embedBatch(texts)
+        : texts.map(() => [] as number[])
 
       const chunks: Chunk[] = rawChunks.map((c, i) => ({
         ...c,
@@ -76,7 +79,9 @@ export class Indexer {
       this.store.removeChunksForNote(file.path)
 
       for (const rawChunk of rawChunks) {
-        const embedding = await embed(rawChunk.content)
+        const embedding = isEmbeddingAvailable()
+          ? await embed(rawChunk.content)
+          : []
         this.store.upsertChunks([{ ...rawChunk, embedding }])
       }
 
