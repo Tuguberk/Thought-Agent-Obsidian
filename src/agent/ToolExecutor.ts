@@ -98,9 +98,9 @@ export class ToolExecutor {
         case "get_note":
           return await this.getNote(input);
         case "get_neighbors":
-          return await this.getNeighbors(input);
+          return this.getNeighbors(input);
         case "get_backlinks":
-          return await this.getBacklinks(input);
+          return this.getBacklinks(input);
         case "query_graph":
           return await this.queryGraph(input);
         case "create_note":
@@ -118,7 +118,7 @@ export class ToolExecutor {
         case "search_diagrams":
           return await this.searchDiagrams(input);
         case "create_diagram":
-          return await this.createDiagram(input);
+          return this.createDiagram(input);
         case "update_diagram":
           return await this.updateDiagram(input);
         case "annotate_diagram":

@@ -78,7 +78,7 @@ export default class AIAgentPlugin extends Plugin {
     this.statusBarItem.hide();
     this.renderStatusBar();
 
-    this.addRibbonIcon("bot", "Open Thought Agent", () => {
+    this.addRibbonIcon("bot", "Open thought agent", () => {
       void this.activateChatView();
     });
 
@@ -117,7 +117,7 @@ export default class AIAgentPlugin extends Plugin {
       callback: async () => {
         const provider = this.buildProvider();
         if (!provider) {
-          new Notice("No provider configured. Go to settings → Thought Agent.");
+          new Notice("No provider configured. Go to settings → thought agent.");
           return;
         }
         try {
@@ -558,7 +558,7 @@ export default class AIAgentPlugin extends Plugin {
             "This note is managed by AI Agent to drive Local Graph for filtered results.",
           )
         ) {
-          await this.app.vault.delete(legacy);
+          await this.app.fileManager.trashFile(legacy);
         }
       }
       const legacyFolder = this.app.vault.getAbstractFileByPath("AI Agent");
@@ -568,7 +568,7 @@ export default class AIAgentPlugin extends Plugin {
         Array.isArray(legacyFolder.children) &&
         legacyFolder.children.length === 0
       ) {
-        await this.app.vault.delete(legacyFolder, true);
+        await this.app.fileManager.trashFile(legacyFolder);
       }
     } catch {
       // ignore cleanup issues

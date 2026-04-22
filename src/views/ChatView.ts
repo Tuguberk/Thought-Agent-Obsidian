@@ -9,7 +9,6 @@ import type { Message } from "../providers/LLMProvider";
 import type { AgentLoop } from "../agent/AgentLoop";
 import type { SessionContext } from "../agent/SessionContext";
 import {
-  sessionContextDescription,
   defaultSessionContext,
 } from "../agent/SessionContext";
 import type AIAgentPlugin from "../main";
@@ -48,7 +47,7 @@ export class ChatView extends ItemView {
     return CHAT_VIEW_TYPE;
   }
   getDisplayText(): string {
-    return "Thought Agent";
+    return "Thought agent";
   }
   getIcon(): string {
     return "bot";
@@ -149,7 +148,7 @@ export class ChatView extends ItemView {
     container.addClass("ai-chat-container");
 
     const header = container.createDiv("ai-chat-header");
-    header.createEl("span", { text: "Thought Agent", cls: "ai-chat-title" });
+    header.createEl("span", { text: "Thought agent", cls: "ai-chat-title" });
     const newChatBtn = header.createEl("button", {
       cls: "ai-chat-settings-btn",
       attr: { "aria-label": "New chat" },
@@ -364,7 +363,7 @@ export class ChatView extends ItemView {
     if (!text || !this.agentLoop) {
       if (!this.agentLoop)
         new Notice(
-          "Thought Agent not initialized. Check your API key in settings.",
+          "Thought agent not initialized. Check your API key in settings.",
         );
       return;
     }
@@ -382,7 +381,6 @@ export class ChatView extends ItemView {
     let currentRawText = "";
     let lastToolDetailsEl: HTMLElement | null = null;
     let thinkingEl: HTMLElement | null = null;
-    let thinkingStart = 0;
     const getToolPill = (toolName: string): { label: string; cls: string } => {
       const n = toolName.toLowerCase();
       if (
@@ -491,7 +489,6 @@ export class ChatView extends ItemView {
             currentTextEl = null; // next text goes into a fresh block
             currentRawText = "";
             lastToolDetailsEl = null;
-            thinkingStart = Date.now();
             thinkingEl = bubble.createDiv("ai-thinking-block");
             thinkingEl.createEl("span", { cls: "ai-thinking-dot" });
             thinkingEl.createEl("span", {
