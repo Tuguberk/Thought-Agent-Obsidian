@@ -101,9 +101,9 @@ export class AIAgentSettingTab extends PluginSettingTab {
         .setName("Model")
         .setDesc("Claude model to use")
         .addDropdown((drop) => {
-          drop.addOption("claude-sonnet-4-6", "Claude Sonnet 4.6 (recommended)");
-          drop.addOption("claude-opus-4-7", "Claude Opus 4.7");
-          drop.addOption("claude-haiku-4-5-20251001", "Claude Haiku 4.5");
+          drop.addOption("claude-sonnet-4-6", "Claude sonnet 4.6 (recommended)");
+          drop.addOption("claude-opus-4-7", "Claude opus 4.7");
+          drop.addOption("claude-haiku-4-5-20251001", "Claude haiku 4.5");
           drop.setValue(this.plugin.settings.model);
           drop.onChange(async (value) => {
             this.plugin.settings.model = value;
