@@ -97,6 +97,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
     return true;
   }
 
+  supportsMultimodalToolResults(): boolean {
+    return false;
+  }
+
   async chat(
     messages: Message[],
     tools: Tool[],
@@ -197,11 +201,21 @@ export class OpenAICompatibleProvider implements LLMProvider {
       const toolResults = blocks.filter((b) => b.type === "tool_result");
       for (const tr of toolResults) {
         if (tr.type === "tool_result") {
-          result.push({
-            role: "tool",
-            content: tr.content,
-            tool_call_id: tr.tool_use_id,
-          });
+          const trContent = tr.content;
+          if (Array.isArray(trContent)) {
+            const textPart = trContent.find((b) => b.type === "text") as { type: "text"; text: string } | undefined;
+            result.push({
+              role: "tool",
+              content: textPart?.text ?? "",
+              tool_call_id: tr.tool_use_id,
+            });
+          } else {
+            result.push({
+              role: "tool",
+              content: trContent,
+              tool_call_id: tr.tool_use_id,
+            });
+          }
         }
       }
 

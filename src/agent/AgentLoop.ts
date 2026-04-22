@@ -10,6 +10,7 @@ import { buildSystemPrompt } from "./SystemPrompt";
 import { getTools } from "../tools/index";
 import type { Tool } from "../providers/LLMProvider";
 import type { PendingChange } from "../changes/PendingChange";
+import type { ExcalidrawAdapter } from "../excalidraw/ExcalidrawAdapter";
 
 export interface AgentCallbacks {
   onTextDelta?: (text: string) => void;
@@ -28,17 +29,20 @@ export class AgentLoop {
   private executor: ToolExecutor;
   private maxIterations: number;
   private tools: Tool[];
+  private excalidraw?: ExcalidrawAdapter;
 
   constructor(
     provider: LLMProvider,
     executor: ToolExecutor,
     maxIterations = 15,
     excalidrawAvailable = false,
+    excalidraw?: ExcalidrawAdapter,
   ) {
     this.provider = provider;
     this.executor = executor;
     this.maxIterations = maxIterations;
     this.tools = getTools(excalidrawAvailable);
+    this.excalidraw = excalidraw;
   }
 
   async run(
@@ -47,9 +51,20 @@ export class AgentLoop {
     session: SessionContext,
     callbacks: AgentCallbacks = {},
   ): Promise<string> {
+    let initialUserContent: string | ContentBlock[] = userMessage;
+    if (session.activeFile?.isDiagram && this.excalidraw) {
+      const png = await this.excalidraw.exportToPNG(session.activeFile.path);
+      if (png) {
+        initialUserContent = [
+          { type: "text", text: userMessage },
+          { type: "image", source: { type: "base64", media_type: "image/png", data: png } },
+        ];
+      }
+    }
+
     const messages: Message[] = [
       ...history,
-      { role: "user", content: userMessage },
+      { role: "user", content: initialUserContent },
     ];
 
     const systemPrompt = buildSystemPrompt(
@@ -96,6 +111,7 @@ export class AgentLoop {
       }
 
       const toolResults: ContentBlock[] = [];
+      const pendingImages: ContentBlock[] = [];
 
       for (const toolUse of toolUseBlocks) {
         if (callbacks.onToolCall)
@@ -114,14 +130,39 @@ export class AgentLoop {
         if (callbacks.onToolResult)
           callbacks.onToolResult(toolUse.name, result.content);
 
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: result.content,
-        });
+        const hasImages = result.images && result.images.length > 0;
+        if (hasImages && this.provider.supportsMultimodalToolResults()) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: [
+              { type: "text", text: result.content },
+              ...result.images!,
+            ],
+          });
+        } else {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: result.content,
+          });
+          if (hasImages && !this.provider.supportsMultimodalToolResults()) {
+            pendingImages.push(...result.images!);
+          }
+        }
       }
 
       messages.push({ role: "user", content: toolResults });
+
+      if (pendingImages.length > 0) {
+        messages.push({
+          role: "user",
+          content: [
+            { type: "text", text: "Diagram görüntüsü (el yazısı ve çizimler dahil):" },
+            ...pendingImages,
+          ],
+        });
+      }
     }
 
     return `[Agent reached max iterations (${iterationLimit}). The last response may be incomplete.]`;

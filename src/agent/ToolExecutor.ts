@@ -20,6 +20,10 @@ import type {
 
 export interface ToolResult {
   content: string;
+  images?: {
+    type: "image";
+    source: { type: "base64"; media_type: "image/png"; data: string };
+  }[];
   pendingChange?: PendingChange;
   graphFilter?: GraphFilter;
 }
@@ -652,9 +656,40 @@ export class ToolExecutor {
       const file = this.app.vault.getAbstractFileByPath(filePath);
       if (!file || !(file instanceof TFile))
         return { content: `Diagram not found: ${filePath}` };
-      const content = await this.app.vault.read(file);
-      const extracted = this.diagramExtractor.extract(filePath, content);
-      return {
+
+      const isDiagramFile = await this.excalidraw.isExcalidrawFile(filePath);
+      if (!isDiagramFile) {
+        return {
+          content:
+            `File is not an Excalidraw diagram: ${filePath}. ` +
+            `Use a .excalidraw file or an Excalidraw markdown note.`,
+        };
+      }
+
+      // Try EA API first (handles compressed format), fall back to raw parse
+      const elements = this.excalidraw
+        ? await this.excalidraw.getDecompressedElements(filePath)
+        : null;
+      const extracted = elements
+        ? this.diagramExtractor.extractFromElements(filePath, elements)
+        : this.diagramExtractor.extract(
+            filePath,
+            await this.app.vault.read(file),
+          );
+
+      const parseFailed = extracted.summary.startsWith("[Parse error]");
+      const activeDiagramPath =
+        this.session.activeFile?.isDiagram === true
+          ? this.session.activeFile.path
+          : null;
+      const summary =
+        parseFailed && activeDiagramPath === filePath ? "" : extracted.summary;
+
+      const pngBase64 = this.excalidraw
+        ? await this.excalidraw.exportToPNG(filePath)
+        : null;
+
+      const result: ToolResult = {
         content: JSON.stringify(
           {
             title: extracted.title,
@@ -663,12 +698,27 @@ export class ToolExecutor {
             nodes: extracted.nodes,
             edges: extracted.edges,
             freeText: extracted.freeText,
-            summary: extracted.summary,
+            summary,
           },
           null,
           2,
         ),
       };
+
+      if (pngBase64) {
+        result.images = [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/png",
+              data: pngBase64,
+            },
+          },
+        ];
+      }
+
+      return result;
     } catch (e) {
       return {
         content: `Error reading diagram: ${e instanceof Error ? e.message : String(e)}`,

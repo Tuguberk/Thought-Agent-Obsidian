@@ -302,11 +302,11 @@ export class ChatView extends ItemView {
     const chips: { icon: string; label: string; onClear?: () => void }[] = [];
 
     if (ctx.activeFile) {
-      const name =
-        ctx.activeFile.path.split("/").pop()?.replace(/\.md$/, "") ??
-        ctx.activeFile.path;
+      const name = ctx.activeFile.isDiagram
+        ? (ctx.activeFile.path.split("/").pop()?.replace(/\.excalidraw$/, "") ?? ctx.activeFile.path)
+        : (ctx.activeFile.path.split("/").pop()?.replace(/\.md$/, "") ?? ctx.activeFile.path);
       chips.push({
-        icon: "📄",
+        icon: ctx.activeFile.isDiagram ? "🖼️" : "📄",
         label: name,
         onClear: () => {
           this.session = { ...this.session, activeFile: null };
