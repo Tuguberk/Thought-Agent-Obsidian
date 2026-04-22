@@ -62,10 +62,10 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian.Setting(containerEl).setName("Thought Agent settings").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Provider").setHeading();
     new import_obsidian.Setting(containerEl).setName("Provider").setDesc("LLM provider to use").addDropdown((drop) => {
       drop.addOption("anthropic", "Anthropic (Claude)");
-      drop.addOption("lmstudio", "LM Studio (local)");
+      drop.addOption("lmstudio", "Lm studio (local)");
       drop.setValue(this.plugin.settings.provider);
       drop.onChange(async (value) => {
         this.plugin.settings.provider = value;
@@ -76,7 +76,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     if (this.plugin.settings.provider === "anthropic") {
       new import_obsidian.Setting(containerEl).setName("Anthropic").setHeading();
       new import_obsidian.Setting(containerEl).setName("API key").setDesc("Your Anthropic API key (stored securely in plugin data)").addText((text) => {
-        text.setPlaceholder("sk-ant-...").setValue(this.plugin.settings.anthropicApiKey).onChange(async (value) => {
+        text.setPlaceholder("Sk-ant-api-...").setValue(this.plugin.settings.anthropicApiKey).onChange(async (value) => {
           this.plugin.settings.anthropicApiKey = value;
           await this.plugin.saveSettings();
         });
@@ -94,15 +94,15 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     }
     if (this.plugin.settings.provider === "lmstudio") {
-      new import_obsidian.Setting(containerEl).setName("LM Studio").setHeading();
-      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc("LM Studio local server URL (default: http://localhost:1234/v1)").addText((text) => {
-        text.setPlaceholder("http://localhost:1234/v1").setValue(this.plugin.settings.lmstudioBaseUrl).onChange(async (value) => {
+      new import_obsidian.Setting(containerEl).setName("Lm studio").setHeading();
+      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc("Lm studio local server URL").addText((text) => {
+        text.setPlaceholder("Server URL").setValue(this.plugin.settings.lmstudioBaseUrl).onChange(async (value) => {
           this.plugin.settings.lmstudioBaseUrl = value.replace(/\/$/, "");
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Model name").setDesc("The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)").addText((text) => {
-        text.setPlaceholder("leave empty to use loaded model").setValue(this.plugin.settings.lmstudioModel).onChange(async (value) => {
+      new import_obsidian.Setting(containerEl).setName("Model name").setDesc("The model identifier shown in lm studio (leave empty to use the loaded model)").addText((text) => {
+        text.setPlaceholder("Leave empty to use loaded model").setValue(this.plugin.settings.lmstudioModel).onChange(async (value) => {
           this.plugin.settings.lmstudioModel = value;
           await this.plugin.saveSettings();
         });
@@ -116,7 +116,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
           }
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Test connection").setDesc("Check that LM Studio is running and reachable").addButton((btn) => {
+      new import_obsidian.Setting(containerEl).setName("Test connection").setDesc("Check that lm studio is running and reachable").addButton((btn) => {
         btn.setButtonText("Test").onClick(async () => {
           btn.setButtonText("Testing...").setDisabled(true);
           try {
@@ -146,7 +146,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("Embeddings").setHeading();
     if (import_obsidian.Platform.isMobile && this.plugin.settings.embeddingProvider === "local") {
       containerEl.createEl("p", {
-        text: "\u26A0\uFE0F Local embedding model does not work on mobile. Semantic search is disabled. Select OpenAI or Google below to enable it.",
+        text: "\u26A0\uFE0F local embedding model does not work on mobile. Semantic search is disabled. Select OpenAI or Google below to enable it.",
         cls: "setting-item-description"
       });
     }
@@ -162,8 +162,8 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     });
     if (this.plugin.settings.embeddingProvider === "local") {
-      new import_obsidian.Setting(containerEl).setName("Local embedding model").setDesc("Downloads ~25 MB on first use. Desktop only.").addDropdown((drop) => {
-        drop.addOption("Xenova/all-MiniLM-L6-v2", "all-MiniLM-L6-v2 (384-dim, fast)");
+      new import_obsidian.Setting(containerEl).setName("Local embedding model").setDesc("Downloads on first use. Desktop only.").addDropdown((drop) => {
+        drop.addOption("Xenova/all-MiniLM-L6-v2", "All-minilm-l6-v2 (384-dim, fast)");
         drop.setValue(this.plugin.settings.embeddingModel);
         drop.onChange(async (value) => {
           this.plugin.settings.embeddingModel = value;
@@ -173,16 +173,16 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     }
     if (this.plugin.settings.embeddingProvider === "openai") {
       new import_obsidian.Setting(containerEl).setName("OpenAI API key").setDesc("Used only for embeddings. Can be the same as your main API key.").addText((text) => {
-        text.setPlaceholder("sk-...").setValue(this.plugin.settings.openaiEmbeddingApiKey).onChange(async (value) => {
+        text.setPlaceholder("API key").setValue(this.plugin.settings.openaiEmbeddingApiKey).onChange(async (value) => {
           this.plugin.settings.openaiEmbeddingApiKey = value;
           await this.plugin.saveSettings();
         });
         text.inputEl.type = "password";
       });
       new import_obsidian.Setting(containerEl).setName("OpenAI embedding model").addDropdown((drop) => {
-        drop.addOption("text-embedding-3-small", "text-embedding-3-small (1536-dim, recommended)");
-        drop.addOption("text-embedding-3-large", "text-embedding-3-large (3072-dim, best quality)");
-        drop.addOption("text-embedding-ada-002", "text-embedding-ada-002 (1536-dim, legacy)");
+        drop.addOption("text-embedding-3-small", "Text-embedding-3-small (1536-dim, recommended)");
+        drop.addOption("text-embedding-3-large", "Text-embedding-3-large (3072-dim, best quality)");
+        drop.addOption("text-embedding-ada-002", "Text-embedding-ada-002 (1536-dim, legacy)");
         drop.setValue(this.plugin.settings.openaiEmbeddingModel);
         drop.onChange(async (value) => {
           this.plugin.settings.openaiEmbeddingModel = value;
@@ -218,15 +218,15 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     }
     if (this.plugin.settings.embeddingProvider === "google") {
-      new import_obsidian.Setting(containerEl).setName("Google API key").setDesc("Gemini API key from Google AI Studio. Used only for embeddings.").addText((text) => {
-        text.setPlaceholder("AIza...").setValue(this.plugin.settings.googleEmbeddingApiKey).onChange(async (value) => {
+      new import_obsidian.Setting(containerEl).setName("Google API key").setDesc("Gemini API key from Google AI studio. Used only for embeddings.").addText((text) => {
+        text.setPlaceholder("API key").setValue(this.plugin.settings.googleEmbeddingApiKey).onChange(async (value) => {
           this.plugin.settings.googleEmbeddingApiKey = value;
           await this.plugin.saveSettings();
         });
         text.inputEl.type = "password";
       });
       new import_obsidian.Setting(containerEl).setName("Google embedding model").addDropdown((drop) => {
-        drop.addOption("text-embedding-004", "text-embedding-004 (768-dim, recommended)");
+        drop.addOption("text-embedding-004", "Text-embedding-004 (768-dim, recommended)");
         drop.setValue(this.plugin.settings.googleEmbeddingModel);
         drop.onChange(async (value) => {
           this.plugin.settings.googleEmbeddingModel = value;
@@ -284,19 +284,19 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("Excalidraw integration").setHeading();
     const excalidrawAvailable = this.plugin.excalidrawAdapter?.isAvailable ?? false;
     containerEl.createEl("p", {
-      text: excalidrawAvailable ? "\u2705 Excalidraw plugin detected \u2014 diagram features enabled." : "\u26A0\uFE0F Excalidraw plugin not found \u2014 diagram features disabled.",
+      text: excalidrawAvailable ? "Excalidraw plugin detected \u2014 diagram features enabled." : "Excalidraw plugin not found \u2014 diagram features disabled.",
       cls: "ai-preview-meta"
     });
     if (excalidrawAvailable) {
-      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc("Re-index .excalidraw files when they change (no LLM calls, no tokens consumed).").addToggle((t) => {
+      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc("Re-index .Excalidraw files when they change (no LLM calls, no tokens consumed).").addToggle((t) => {
         t.setValue(this.plugin.settings.diagramWatcherEnabled);
         t.onChange(async (v) => {
           this.plugin.settings.diagramWatcherEnabled = v;
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc('Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.').addText((t) => {
-        t.setPlaceholder("e.g. Diagrams").setValue(this.plugin.settings.diagramDefaultFolder).onChange(async (v) => {
+      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc('Base folder for all new diagrams. If empty, thought agent uses "diagrams" automatically. Agent can create subfolders only under this folder.').addText((t) => {
+        t.setPlaceholder("E.g. Diagrams").setValue(this.plugin.settings.diagramDefaultFolder).onChange(async (v) => {
           this.plugin.settings.diagramDefaultFolder = v;
           await this.plugin.saveSettings();
         });
@@ -381,7 +381,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     return CHAT_VIEW_TYPE;
   }
   getDisplayText() {
-    return "Thought Agent";
+    return "Thought agent";
   }
   getIcon() {
     return "bot";
@@ -471,7 +471,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     container.empty();
     container.addClass("ai-chat-container");
     const header = container.createDiv("ai-chat-header");
-    header.createEl("span", { text: "Thought Agent", cls: "ai-chat-title" });
+    header.createEl("span", { text: "Thought agent", cls: "ai-chat-title" });
     const newChatBtn = header.createEl("button", {
       cls: "ai-chat-settings-btn",
       attr: { "aria-label": "New chat" }
@@ -661,7 +661,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     if (!text || !this.agentLoop) {
       if (!this.agentLoop)
         new import_obsidian2.Notice(
-          "Thought Agent not initialized. Check your API key in settings."
+          "Thought agent not initialized. Check your API key in settings."
         );
       return;
     }
@@ -675,7 +675,6 @@ var ChatView = class extends import_obsidian2.ItemView {
     let currentRawText = "";
     let lastToolDetailsEl = null;
     let thinkingEl = null;
-    let thinkingStart = 0;
     const getToolPill = (toolName) => {
       const n = toolName.toLowerCase();
       if (n.includes("git") || n.includes("commit") || n.includes("branch") || n.includes("pull_request")) {
@@ -745,7 +744,6 @@ var ChatView = class extends import_obsidian2.ItemView {
             currentTextEl = null;
             currentRawText = "";
             lastToolDetailsEl = null;
-            thinkingStart = Date.now();
             thinkingEl = bubble.createDiv("ai-thinking-block");
             thinkingEl.createEl("span", { cls: "ai-thinking-dot" });
             thinkingEl.createEl("span", {
@@ -1037,7 +1035,7 @@ var PreviewView = class extends import_obsidian3.ItemView {
   }
   renderCreateDiagram(container, change) {
     const typeLabel = change.spec.type.replace("-", " ").toUpperCase();
-    const badge = container.createEl("span", { text: typeLabel, cls: "ai-diagram-badge" });
+    container.createEl("span", { text: typeLabel, cls: "ai-diagram-badge" });
     container.createEl("p", { text: `File: ${change.filePath}`, cls: "ai-preview-meta" });
     container.createEl("p", { text: `${change.spec.nodes.length} nodes \xB7 ${change.spec.edges.length} edges`, cls: "ai-preview-meta" });
     container.createEl("h3", { text: "Nodes" });
@@ -4950,7 +4948,7 @@ async function initEmbedder(config) {
     return;
   }
   if (!config.apiKey) {
-    new import_obsidian6.Notice("Embedding API key not set \u2014 semantic search disabled. Add your key in Settings \u2192 Embeddings.");
+    new import_obsidian6.Notice("Embedding API key not set \u2014 semantic search disabled. Add your key in settings \u2192 embeddings.");
     return;
   }
   ready = true;
@@ -4967,7 +4965,7 @@ async function initLocalPipeline(model, pluginDir) {
   loading = true;
   loadPromise = (async () => {
     try {
-      new import_obsidian6.Notice("Loading embedding model (~25 MB)\u2026");
+      new import_obsidian6.Notice("Loading embedding model\u2026");
       const transformers = require(`${pluginDir}/node_modules/@xenova/transformers`);
       const pipeline = transformers.pipeline;
       const env = transformers.env;
@@ -5899,9 +5897,9 @@ var ToolExecutor = class {
         case "get_note":
           return await this.getNote(input);
         case "get_neighbors":
-          return await this.getNeighbors(input);
+          return this.getNeighbors(input);
         case "get_backlinks":
-          return await this.getBacklinks(input);
+          return this.getBacklinks(input);
         case "query_graph":
           return await this.queryGraph(input);
         case "create_note":
@@ -5919,7 +5917,7 @@ var ToolExecutor = class {
         case "search_diagrams":
           return await this.searchDiagrams(input);
         case "create_diagram":
-          return await this.createDiagram(input);
+          return this.createDiagram(input);
         case "update_diagram":
           return await this.updateDiagram(input);
         case "annotate_diagram":
@@ -7153,7 +7151,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
     this.statusBarItem.addClass("ai-agent-statusbar");
     this.statusBarItem.hide();
     this.renderStatusBar();
-    this.addRibbonIcon("bot", "Open Thought Agent", () => {
+    this.addRibbonIcon("bot", "Open thought agent", () => {
       void this.activateChatView();
     });
     this.addCommand({
@@ -7187,7 +7185,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       callback: async () => {
         const provider = this.buildProvider();
         if (!provider) {
-          new import_obsidian12.Notice("No provider configured. Go to settings \u2192 Thought Agent.");
+          new import_obsidian12.Notice("No provider configured. Go to settings \u2192 thought agent.");
           return;
         }
         try {
@@ -7557,12 +7555,12 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
         if (text.includes(
           "This note is managed by AI Agent to drive Local Graph for filtered results."
         )) {
-          await this.app.vault.delete(legacy);
+          await this.app.fileManager.trashFile(legacy);
         }
       }
       const legacyFolder = this.app.vault.getAbstractFileByPath("AI Agent");
       if (legacyFolder && "children" in legacyFolder && Array.isArray(legacyFolder.children) && legacyFolder.children.length === 0) {
-        await this.app.vault.delete(legacyFolder, true);
+        await this.app.fileManager.trashFile(legacyFolder);
       }
     } catch {
     }

@@ -160,7 +160,7 @@ export class PreviewView extends ItemView {
 
   private renderCreateDiagram(container: HTMLElement, change: Extract<PendingChange, { kind: 'create_diagram' }>): void {
     const typeLabel = change.spec.type.replace('-', ' ').toUpperCase()
-    const badge = container.createEl('span', { text: typeLabel, cls: 'ai-diagram-badge' })
+    container.createEl('span', { text: typeLabel, cls: 'ai-diagram-badge' })
 
     container.createEl('p', { text: `File: ${change.filePath}`, cls: 'ai-preview-meta' })
     container.createEl('p', { text: `${change.spec.nodes.length} nodes · ${change.spec.edges.length} edges`, cls: 'ai-preview-meta' })

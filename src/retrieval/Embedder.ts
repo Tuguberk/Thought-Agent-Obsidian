@@ -54,7 +54,7 @@ export async function initEmbedder(config: EmbeddingConfig): Promise<void> {
 
   // API providers
   if (!config.apiKey) {
-    new Notice('Embedding API key not set — semantic search disabled. Add your key in Settings → Embeddings.')
+    new Notice('Embedding API key not set — semantic search disabled. Add your key in settings → embeddings.')
     return
   }
   ready = true
@@ -70,7 +70,7 @@ async function initLocalPipeline(model: string, pluginDir: string): Promise<void
   loading = true
   loadPromise = (async () => {
     try {
-      new Notice('Loading embedding model (~25 MB)…')
+      new Notice('Loading embedding model…')
       const transformers = require(`${pluginDir}/node_modules/@xenova/transformers`)
       const pipeline = transformers.pipeline as (task: string, model: string) => Promise<PipelineFunction>
       const env = transformers.env as TransformersEnv

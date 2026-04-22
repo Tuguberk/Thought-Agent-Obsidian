@@ -11,7 +11,7 @@ export interface AIAgentSettings {
   maxIterations: number;
   // Embedding
   embeddingProvider: "local" | "openai" | "google";
-  embeddingModel: string;           // local Xenova model
+  embeddingModel: string;
   openaiEmbeddingApiKey: string;
   openaiEmbeddingModel: string;
   googleEmbeddingApiKey: string;
@@ -62,15 +62,15 @@ export class AIAgentSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName("Thought Agent settings").setHeading();
-
     // --- Provider selector ---
+    new Setting(containerEl).setName("Provider").setHeading();
+
     new Setting(containerEl)
       .setName("Provider")
       .setDesc("LLM provider to use")
       .addDropdown((drop) => {
         drop.addOption("anthropic", "Anthropic (Claude)");
-        drop.addOption("lmstudio", "LM Studio (local)");
+        drop.addOption("lmstudio", "Lm studio (local)");
         drop.setValue(this.plugin.settings.provider);
         drop.onChange(async (value) => {
           this.plugin.settings.provider = value as "anthropic" | "lmstudio";
@@ -88,7 +88,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
         .setDesc("Your Anthropic API key (stored securely in plugin data)")
         .addText((text) => {
           text
-            .setPlaceholder("sk-ant-...")
+            .setPlaceholder("Sk-ant-api-...")
             .setValue(this.plugin.settings.anthropicApiKey)
             .onChange(async (value) => {
               this.plugin.settings.anthropicApiKey = value;
@@ -114,14 +114,14 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
     // --- LM Studio section ---
     if (this.plugin.settings.provider === "lmstudio") {
-      new Setting(containerEl).setName("LM Studio").setHeading();
+      new Setting(containerEl).setName("Lm studio").setHeading();
 
       new Setting(containerEl)
         .setName("Base URL")
-        .setDesc("LM Studio local server URL (default: http://localhost:1234/v1)")
+        .setDesc("Lm studio local server URL")
         .addText((text) => {
           text
-            .setPlaceholder("http://localhost:1234/v1")
+            .setPlaceholder("Server URL")
             .setValue(this.plugin.settings.lmstudioBaseUrl)
             .onChange(async (value) => {
               this.plugin.settings.lmstudioBaseUrl = value.replace(/\/$/, "");
@@ -131,10 +131,10 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Model name")
-        .setDesc("The model identifier shown in LM Studio (e.g. lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF)")
+        .setDesc("The model identifier shown in lm studio (leave empty to use the loaded model)")
         .addText((text) => {
           text
-            .setPlaceholder("leave empty to use loaded model")
+            .setPlaceholder("Leave empty to use loaded model")
             .setValue(this.plugin.settings.lmstudioModel)
             .onChange(async (value) => {
               this.plugin.settings.lmstudioModel = value;
@@ -160,7 +160,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Test connection")
-        .setDesc("Check that LM Studio is running and reachable")
+        .setDesc("Check that lm studio is running and reachable")
         .addButton((btn) => {
           btn.setButtonText("Test").onClick(async () => {
             btn.setButtonText("Testing...").setDisabled(true);
@@ -174,7 +174,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
               const models = data.data.map((m) => m.id).join(", ");
               new Notice(`LM Studio connected. Models: ${models || "(none loaded)"}`);
             } catch (e) {
-              new Notice(`Cannot reach LM Studio: ${e.message}`);
+              new Notice(`Cannot reach LM Studio: ${(e as Error).message}`);
             } finally {
               btn.setButtonText("Test").setDisabled(false);
             }
@@ -204,7 +204,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
     if (Platform.isMobile && this.plugin.settings.embeddingProvider === "local") {
       containerEl.createEl("p", {
-        text: "⚠️ Local embedding model does not work on mobile. Semantic search is disabled. Select OpenAI or Google below to enable it.",
+        text: "⚠️ local embedding model does not work on mobile. Semantic search is disabled. Select OpenAI or Google below to enable it.",
         cls: "setting-item-description",
       });
     }
@@ -227,9 +227,9 @@ export class AIAgentSettingTab extends PluginSettingTab {
     if (this.plugin.settings.embeddingProvider === "local") {
       new Setting(containerEl)
         .setName("Local embedding model")
-        .setDesc("Downloads ~25 MB on first use. Desktop only.")
+        .setDesc("Downloads on first use. Desktop only.")
         .addDropdown((drop) => {
-          drop.addOption("Xenova/all-MiniLM-L6-v2", "all-MiniLM-L6-v2 (384-dim, fast)");
+          drop.addOption("Xenova/all-MiniLM-L6-v2", "All-minilm-l6-v2 (384-dim, fast)");
           drop.setValue(this.plugin.settings.embeddingModel);
           drop.onChange(async (value) => {
             this.plugin.settings.embeddingModel = value;
@@ -244,7 +244,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
         .setDesc("Used only for embeddings. Can be the same as your main API key.")
         .addText((text) => {
           text
-            .setPlaceholder("sk-...")
+            .setPlaceholder("API key")
             .setValue(this.plugin.settings.openaiEmbeddingApiKey)
             .onChange(async (value) => {
               this.plugin.settings.openaiEmbeddingApiKey = value;
@@ -256,9 +256,9 @@ export class AIAgentSettingTab extends PluginSettingTab {
       new Setting(containerEl)
         .setName("OpenAI embedding model")
         .addDropdown((drop) => {
-          drop.addOption("text-embedding-3-small", "text-embedding-3-small (1536-dim, recommended)");
-          drop.addOption("text-embedding-3-large", "text-embedding-3-large (3072-dim, best quality)");
-          drop.addOption("text-embedding-ada-002", "text-embedding-ada-002 (1536-dim, legacy)");
+          drop.addOption("text-embedding-3-small", "Text-embedding-3-small (1536-dim, recommended)");
+          drop.addOption("text-embedding-3-large", "Text-embedding-3-large (3072-dim, best quality)");
+          drop.addOption("text-embedding-ada-002", "Text-embedding-ada-002 (1536-dim, legacy)");
           drop.setValue(this.plugin.settings.openaiEmbeddingModel);
           drop.onChange(async (value) => {
             this.plugin.settings.openaiEmbeddingModel = value;
@@ -300,10 +300,10 @@ export class AIAgentSettingTab extends PluginSettingTab {
     if (this.plugin.settings.embeddingProvider === "google") {
       new Setting(containerEl)
         .setName("Google API key")
-        .setDesc("Gemini API key from Google AI Studio. Used only for embeddings.")
+        .setDesc("Gemini API key from Google AI studio. Used only for embeddings.")
         .addText((text) => {
           text
-            .setPlaceholder("AIza...")
+            .setPlaceholder("API key")
             .setValue(this.plugin.settings.googleEmbeddingApiKey)
             .onChange(async (value) => {
               this.plugin.settings.googleEmbeddingApiKey = value;
@@ -315,7 +315,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
       new Setting(containerEl)
         .setName("Google embedding model")
         .addDropdown((drop) => {
-          drop.addOption("text-embedding-004", "text-embedding-004 (768-dim, recommended)");
+          drop.addOption("text-embedding-004", "Text-embedding-004 (768-dim, recommended)");
           drop.setValue(this.plugin.settings.googleEmbeddingModel);
           drop.onChange(async (value) => {
             this.plugin.settings.googleEmbeddingModel = value;
@@ -398,15 +398,15 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
     containerEl.createEl("p", {
       text: excalidrawAvailable
-        ? "✅ Excalidraw plugin detected — diagram features enabled."
-        : "⚠️ Excalidraw plugin not found — diagram features disabled.",
+        ? "Excalidraw plugin detected — diagram features enabled."
+        : "Excalidraw plugin not found — diagram features disabled.",
       cls: "ai-preview-meta",
     });
 
     if (excalidrawAvailable) {
       new Setting(containerEl)
         .setName("Enable diagram watcher")
-        .setDesc("Re-index .excalidraw files when they change (no LLM calls, no tokens consumed).")
+        .setDesc("Re-index .Excalidraw files when they change (no LLM calls, no tokens consumed).")
         .addToggle((t) => {
           t.setValue(this.plugin.settings.diagramWatcherEnabled);
           t.onChange(async (v) => {
@@ -417,9 +417,9 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Default diagram folder")
-        .setDesc('Base folder for all new diagrams. If empty, Thought Agent uses "Diagrams" automatically. Agent can create subfolders only under this folder.')
+        .setDesc('Base folder for all new diagrams. If empty, thought agent uses "diagrams" automatically. Agent can create subfolders only under this folder.')
         .addText((t) => {
-          t.setPlaceholder("e.g. Diagrams")
+          t.setPlaceholder("E.g. Diagrams")
             .setValue(this.plugin.settings.diagramDefaultFolder)
             .onChange(async (v) => {
               this.plugin.settings.diagramDefaultFolder = v;
