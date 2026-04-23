@@ -6,6 +6,8 @@
 
 **An AI-powered Obsidian plugin that treats your notes, links, and diagrams as a living knowledge graph.**
 
+![Demo](github_assets/screenshots/demo1.gif)
+
 [![Version](https://img.shields.io/badge/version-1.0.0-7c3aed?style=flat-square)](./manifest.json)
 [![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://obsidian.md)
 [![License](https://img.shields.io/badge/license-MIT-7c3aed?style=flat-square)](./LICENSE)
