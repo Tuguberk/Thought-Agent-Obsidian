@@ -78,9 +78,8 @@ export class ExcalidrawAdapter {
 
     const cache = this.app.metadataCache.getFileCache(file);
     const frontmatter: Record<string, unknown> = cache?.frontmatter ?? {};
-    const marker = String(frontmatter["excalidraw-plugin"] ?? "")
-      .toLowerCase()
-      .trim();
+    const fm = frontmatter["excalidraw-plugin"];
+    const marker = (typeof fm === "string" ? fm : "").toLowerCase().trim();
     if (["parsed", "raw", "true", "1"].includes(marker)) return true;
 
     const content = await this.app.vault.cachedRead(file);
@@ -96,7 +95,7 @@ export class ExcalidrawAdapter {
     if (!file || !(file instanceof TFile))
       throw new Error(`File not found: ${filePath}`);
     const content = await this.app.vault.read(file);
-    const parsed: ExcalidrawFile = JSON.parse(content);
+    const parsed = JSON.parse(content) as ExcalidrawFile;
     return parsed.elements ?? [];
   }
 
@@ -150,10 +149,7 @@ export class ExcalidrawAdapter {
     reset?: () => void;
     loadFile?: (fileOrPath: TFile | string) => Promise<void>;
     getElements?: () => ExcalidrawElement[];
-    createPNG?: (
-      template?: string,
-      scale?: number,
-    ) => Promise<unknown> | unknown;
+    createPNG?: (template?: string, scale?: number) => Promise<unknown>;
     targetView?: unknown;
   } | null {
     const plugin = (
@@ -181,7 +177,8 @@ export class ExcalidrawAdapter {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        resolve(String(reader.result).split(",")[1] ?? "");
+        const result = reader.result;
+        resolve(typeof result === "string" ? (result.split(",")[1] ?? "") : "");
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
@@ -209,10 +206,6 @@ export class ExcalidrawAdapter {
       if (typeof atob === "function") {
         const head = atob(normalized.slice(0, 24));
         bytes = Array.from(head, (c) => c.charCodeAt(0));
-      } else if (typeof Buffer !== "undefined") {
-        bytes = Array.from(
-          Buffer.from(normalized.slice(0, 24), "base64").subarray(0, 8),
-        );
       } else {
         return false;
       }

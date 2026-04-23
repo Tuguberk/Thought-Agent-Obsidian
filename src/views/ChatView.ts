@@ -253,9 +253,9 @@ export class ChatView extends ItemView {
         this.modelMenuEl?.contains(target);
       if (!modeInside && !modelInside) this.closeMenus();
     };
-    document.addEventListener("mousedown", outsideHandler);
+    activeDocument.addEventListener("mousedown", outsideHandler);
     this.disposeOutsideMenuListener = () => {
-      document.removeEventListener("mousedown", outsideHandler);
+      activeDocument.removeEventListener("mousedown", outsideHandler);
     };
   }
 

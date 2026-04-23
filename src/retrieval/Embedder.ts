@@ -80,7 +80,7 @@ async function initLocalPipeline(model: string, pluginDir: string): Promise<void
       pipelineInstance = await pipeline('feature-extraction', model)
       new Notice('Embedding model loaded.')
     } catch (e) {
-      new Notice(`Failed to load embedding model: ${e.message}`)
+      new Notice(`Failed to load embedding model: ${e instanceof Error ? e.message : String(e)}`)
       throw e
     } finally {
       loading = false
@@ -201,5 +201,5 @@ async function embedBatchWithGoogle(
 }
 
 function yieldToUI(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0))
+  return new Promise(resolve => activeWindow.setTimeout(resolve, 0))
 }

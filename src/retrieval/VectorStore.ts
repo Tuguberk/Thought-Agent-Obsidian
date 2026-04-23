@@ -32,7 +32,7 @@ export class VectorStore {
     write(path: string, data: string): Promise<void>;
   } {
     const app = (
-      window as unknown as {
+      activeWindow as unknown as {
         app?: {
           vault?: {
             adapter?: {
@@ -51,7 +51,7 @@ export class VectorStore {
   async load(): Promise<void> {
     try {
       const raw = await this.getVaultAdapter().read(this.dataPath);
-      const data: VectorStoreData = JSON.parse(raw);
+      const data = JSON.parse(raw) as VectorStoreData;
       this.chunks = new Map(data.chunks.map((c) => [c.id, c]));
       this.diagrams = new Map((data.diagrams ?? []).map((d) => [d.id, d]));
     } catch {
@@ -72,7 +72,7 @@ export class VectorStore {
   scheduleSave(): void {
     if (this.saveScheduled) return;
     this.saveScheduled = true;
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       void this.save().finally(() => { this.saveScheduled = false; });
     }, 2000);
   }

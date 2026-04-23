@@ -1,8 +1,8 @@
 {
   "id": "thought-agent",
   "name": "Thought Agent",
-  "version": "1.0.3",
-  "minAppVersion": "1.4.0",
+  "version": "1.0.4",
+  "minAppVersion": "1.7.2",
   "description": "An autonomous graph-aware AI assistant that chats with your notes, proposes edits safely, and creates intelligent mindmaps.",
   "author": "Tugberk Akbulut",
   "authorUrl": "",

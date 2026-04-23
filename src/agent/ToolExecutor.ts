@@ -9,6 +9,7 @@ import { embed } from "../retrieval/Embedder";
 import type {
   ExcalidrawAdapter,
   ExcalidrawElement,
+  ExcalidrawFile,
 } from "../excalidraw/ExcalidrawAdapter";
 import { DiagramExtractor } from "../excalidraw/DiagramExtractor";
 import { DiagramLayoutEngine } from "../excalidraw/DiagramLayoutEngine";
@@ -131,7 +132,7 @@ export class ToolExecutor {
           return { content: `Unknown tool: ${toolName}` };
       }
     } catch (e) {
-      return { content: `Error executing ${toolName}: ${e.message}` };
+      return { content: `Error executing ${toolName}: ${e instanceof Error ? e.message : String(e)}` };
     }
   }
 
@@ -795,7 +796,7 @@ export class ToolExecutor {
     if (!this.excalidraw)
       return { content: "Excalidraw plugin is not installed." };
     const filePath = input.filePath as string;
-    let originalContent;
+    let originalContent: ExcalidrawFile;
     try {
       originalContent = await this.excalidraw.readFile(filePath);
     } catch {
@@ -809,7 +810,7 @@ export class ToolExecutor {
         | Array<{ nodeId: string; newLabel: string }>
         | undefined) ?? [];
 
-    const updatedContent = JSON.parse(JSON.stringify(originalContent));
+    const updatedContent = JSON.parse(JSON.stringify(originalContent)) as ExcalidrawFile;
 
     // Find bounding box of existing elements to place new nodes in free area
     const existingEls = updatedContent.elements;

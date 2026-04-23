@@ -2,7 +2,7 @@ import { App, TAbstractFile } from 'obsidian'
 import type { DiagramIndexer } from './DiagramIndexer'
 
 export class DiagramWatcher {
-  private timers = new Map<string, ReturnType<typeof setTimeout>>()
+  private timers = new Map<string, number>()
 
   constructor(
     private app: App,
@@ -30,7 +30,7 @@ export class DiagramWatcher {
 
   private debounce(path: string): void {
     this.cancelDebounce(path)
-    this.timers.set(path, setTimeout(() => {
+    this.timers.set(path, activeWindow.setTimeout(() => {
       this.timers.delete(path)
       void this.indexer.reindexFile(path)
     }, 2000))
@@ -38,6 +38,6 @@ export class DiagramWatcher {
 
   private cancelDebounce(path: string): void {
     const t = this.timers.get(path)
-    if (t) { clearTimeout(t); this.timers.delete(path) }
+    if (t) { activeWindow.clearTimeout(t); this.timers.delete(path) }
   }
 }

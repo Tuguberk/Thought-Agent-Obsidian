@@ -164,7 +164,7 @@ export class GraphQueryView extends ItemView {
 
     ctx.clearRect(0, 0, w, h)
 
-    const isDark = document.body.classList.contains('theme-dark')
+    const isDark = activeDocument.body.classList.contains('theme-dark')
     const edgeColor = isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
     const nodeColor = isDark ? '#7c6af7' : '#6b57d1'
     const textColor = isDark ? '#e0e0e0' : '#333'
