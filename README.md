@@ -2,7 +2,7 @@
 
 # 🧠 Thought Agent
 
-### *Your vault doesn't just store knowledge, it thinks with you.*
+### _Your vault doesn't just store knowledge, it thinks with you._
 
 **An AI-powered Obsidian plugin that treats your notes, links, and diagrams as a living knowledge graph.**
 
@@ -18,9 +18,9 @@
 
 ## ✦ What is Thought Agent?
 
-Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous reasoning agent** that navigates your vault like a researcher, searching semantically, traversing graph links, proposing safe edits, and generating visual diagrams, all without touching a single file until *you* approve.
+Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous reasoning agent** that navigates your vault like a researcher, searching semantically, traversing graph links, proposing safe edits, and generating visual diagrams, all without touching a single file until _you_ approve.
 
-> *"Think of it as a second brain for your second brain."*
+> _"Think of it as a second brain for your second brain."_
 
 ---
 
@@ -34,7 +34,7 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 2. Open Obsidian → **Settings → BRAT → Add Beta Plugin**.
 3. Paste the repository URL:
    ```
-   https://github.com/tugberkakbulut/thought-obsidian
+   https://github.com/Tuguberk/Thought-Agent-Obsidian
    ```
 4. Click **Add Plugin**, BRAT downloads and enables it automatically.
 5. Go to **Settings → Community Plugins** and toggle **Thought Agent** on.
@@ -43,7 +43,7 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 
 ### Option 2, Manual installation
 
-1. Go to the [**Releases**](https://github.com/tugberkakbulut/thought-obsidian/releases) page and download the latest:
+1. Go to the [**Releases**](https://github.com/Tuguberk/Thought-Agent-Obsidian/releases) page and download the latest:
    - `main.js`
    - `manifest.json`
    - `styles.css`
@@ -60,7 +60,7 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 
 ```bash
 # Clone into your vault's plugins folder
-git clone https://github.com/tugberkakbulut/thought-obsidian \
+git clone https://github.com/Tuguberk/Thought-Agent-Obsidian \
   "<your-vault>/.obsidian/plugins/thought-agent"
 
 cd "<your-vault>/.obsidian/plugins/thought-agent"
@@ -79,11 +79,13 @@ Then enable the plugin in Obsidian as above.
 Open **Obsidian → Settings → Thought Agent** and pick your LLM provider:
 
 **Using Anthropic (Claude):**
+
 - Set **Provider** → `Anthropic`
 - Paste your [Anthropic API key](https://console.anthropic.com/) (`sk-ant-...`)
 - Select a model, **Claude Sonnet 4.6** is recommended for the best balance of speed and power
 
 **Using a local model (LM Studio):**
+
 - Download and open [LM Studio](https://lmstudio.ai), load any model, and start the local server
 - Set **Provider** → `LM Studio`
 - Default URL is `http://localhost:1234/v1`, hit **Test** to confirm it's reachable
@@ -100,7 +102,7 @@ This builds the local semantic index (~25 MB model download on first run). You o
 
 ### Step 3, Open the chat
 
-Click the **🧠 Thought Agent** icon in the left sidebar (or run *"Open Thought Agent chat"* from the Command Palette).
+Click the **🧠 Thought Agent** icon in the left sidebar (or run _"Open Thought Agent chat"_ from the Command Palette).
 
 **Example prompts to try:**
 
@@ -178,11 +180,11 @@ flowchart LR
     style OA fill:#1a1a2e,color:#e2e8f0,stroke:#3178c6,stroke-width:1px
 ```
 
-| Provider | Setup | Privacy | Models | Best For |
-|---|---|---|---|---|
-| **Anthropic** | API key | Cloud | Claude Sonnet / Opus / Haiku | Best reasoning quality |
-| **LM Studio** | `localhost:1234` | 100% local | Any GGUF model | Offline / private vaults |
-| **OpenAI-compat** | Custom endpoint | Depends | Provider-specific | Custom deployments |
+| Provider          | Setup            | Privacy    | Models                       | Best For                 |
+| ----------------- | ---------------- | ---------- | ---------------------------- | ------------------------ |
+| **Anthropic**     | API key          | Cloud      | Claude Sonnet / Opus / Haiku | Best reasoning quality   |
+| **LM Studio**     | `localhost:1234` | 100% local | Any GGUF model               | Offline / private vaults |
+| **OpenAI-compat** | Custom endpoint  | Depends    | Provider-specific            | Custom deployments       |
 
 ---
 
@@ -210,7 +212,7 @@ flowchart LR
 
 ## ✏️ Safe Write Workflow
 
-> *"Nothing touches your vault without your eyes on it first."*
+> _"Nothing touches your vault without your eyes on it first."_
 
 ```mermaid
 sequenceDiagram
@@ -256,12 +258,12 @@ flowchart TD
 
 **Supported diagram types:**
 
-| Type | Description | Use case |
-|---|---|---|
-| `mindmap` | Hierarchical radial tree | Brainstorming, concept maps |
-| `flowchart` | Process with decision nodes | Algorithms, workflows |
-| `timeline` | Chronological node chain | History, project planning |
-| `entity-graph` | Relationship network | Knowledge graphs, ERDs |
+| Type           | Description                 | Use case                    |
+| -------------- | --------------------------- | --------------------------- |
+| `mindmap`      | Hierarchical radial tree    | Brainstorming, concept maps |
+| `flowchart`    | Process with decision nodes | Algorithms, workflows       |
+| `timeline`     | Chronological node chain    | History, project planning   |
+| `entity-graph` | Relationship network        | Knowledge graphs, ERDs      |
 
 ---
 
@@ -272,31 +274,31 @@ The agent has **14 tools** across two categories:
 <details>
 <summary><strong>📚 Vault Tools (always available)</strong></summary>
 
-| Tool | Description |
-|---|---|
-| `search_notes` | Hybrid semantic + keyword search over the entire vault |
-| `get_note` | Fetch full content of any note by path |
-| `get_neighbors` | Walk outgoing/incoming links to depth N |
-| `get_backlinks` | Find all notes pointing to a target note |
-| `query_graph` | Filter & visualize a subgraph (opens visual graph view) |
-| `create_note` | Propose a new note (preview → approval) |
-| `edit_note` | Propose changes to an existing note (diff preview) |
-| `link_notes` | Add a wikilink between two notes (preview → approval) |
-| `reorganize` | Multi-step vault restructuring with per-step approval |
-| `set_session_constraint` | Scope agent to specific tags/folders for the session |
+| Tool                     | Description                                             |
+| ------------------------ | ------------------------------------------------------- |
+| `search_notes`           | Hybrid semantic + keyword search over the entire vault  |
+| `get_note`               | Fetch full content of any note by path                  |
+| `get_neighbors`          | Walk outgoing/incoming links to depth N                 |
+| `get_backlinks`          | Find all notes pointing to a target note                |
+| `query_graph`            | Filter & visualize a subgraph (opens visual graph view) |
+| `create_note`            | Propose a new note (preview → approval)                 |
+| `edit_note`              | Propose changes to an existing note (diff preview)      |
+| `link_notes`             | Add a wikilink between two notes (preview → approval)   |
+| `reorganize`             | Multi-step vault restructuring with per-step approval   |
+| `set_session_constraint` | Scope agent to specific tags/folders for the session    |
 
 </details>
 
 <details>
 <summary><strong>🎨 Diagram Tools (requires Excalidraw plugin)</strong></summary>
 
-| Tool | Description |
-|---|---|
-| `create_diagram` | Generate new `.excalidraw` from semantic node/edge structure |
-| `update_diagram` | Add nodes/edges or relabel existing diagram |
-| `search_diagrams` | Semantic search over the diagram index |
-| `read_diagram` | Extract structured content from any `.excalidraw` file |
-| `annotate_diagram` | Bidirectionally link a note and a diagram |
+| Tool               | Description                                                  |
+| ------------------ | ------------------------------------------------------------ |
+| `create_diagram`   | Generate new `.excalidraw` from semantic node/edge structure |
+| `update_diagram`   | Add nodes/edges or relabel existing diagram                  |
+| `search_diagrams`  | Semantic search over the diagram index                       |
+| `read_diagram`     | Extract structured content from any `.excalidraw` file       |
+| `annotate_diagram` | Bidirectionally link a note and a diagram                    |
 
 </details>
 
@@ -356,13 +358,13 @@ thought-obsidian/
 - **Obsidian Desktop** 1.4.0+
 - **Node.js** 18+
 - **npm**
-- *(Optional)* [Excalidraw Obsidian plugin](https://github.com/zsviczian/obsidian-excalidraw-plugin) for diagram features
+- _(Optional)_ [Excalidraw Obsidian plugin](https://github.com/zsviczian/obsidian-excalidraw-plugin) for diagram features
 
 ### Installation (Development)
 
 ```bash
 # 1. Clone into your vault's plugins folder
-git clone https://github.com/tugberkakbulut/thought-obsidian \
+git clone https://github.com/Tuguberk/Thought-Agent-Obsidian \
   /path/to/vault/.obsidian/plugins/thought-agent
 
 # 2. Install dependencies
@@ -435,6 +437,6 @@ MIT © [Tugberk Akbulut](https://github.com/tugberkakbulut)
 
 <div align="center">
 
-*Built with ❤️ for people who think in graphs.*
+_Built with ❤️ for people who think in graphs._
 
 </div>
