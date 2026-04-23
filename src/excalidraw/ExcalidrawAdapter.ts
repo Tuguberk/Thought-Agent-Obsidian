@@ -320,10 +320,10 @@ export class ExcalidrawAdapter {
     }
   }
 
-  private async setTargetViewForFile(
+  private setTargetViewForFile(
     ea: { targetView?: unknown },
     filePath: string,
-  ): Promise<void> {
+  ): void {
     const leaves = this.app.workspace.getLeavesOfType("excalidraw");
     const leaf = leaves.find((l) => {
       const viewFile = (l.view as unknown as { file?: TFile }).file;
@@ -340,7 +340,7 @@ export class ExcalidrawAdapter {
     const file = this.app.vault.getAbstractFileByPath(filePath);
     if (!(file instanceof TFile)) return null;
     try {
-      await this.setTargetViewForFile(ea, filePath);
+      this.setTargetViewForFile(ea, filePath);
       ea.reset();
       try {
         await ea.loadFile(file);
@@ -363,7 +363,7 @@ export class ExcalidrawAdapter {
     const scales = [1, 0.8, 0.5];
 
     // Strategy 1: use the open Excalidraw view directly (no reset needed, view is already rendered)
-    await this.setTargetViewForFile(ea, filePath);
+    this.setTargetViewForFile(ea, filePath);
     for (const scale of scales) {
       const png = await this.toBase64FromPngResult(await ea.createPNG(undefined, scale));
       if (png && this.byteLengthFromBase64(png) > 512) return png;
@@ -381,7 +381,7 @@ export class ExcalidrawAdapter {
         } catch {
           await ea.loadFile(file.path);
         }
-        await this.setTargetViewForFile(ea, filePath);
+        this.setTargetViewForFile(ea, filePath);
 
         for (const scale of scales) {
           const png = await this.toBase64FromPngResult(await ea.createPNG(undefined, scale));
