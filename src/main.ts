@@ -145,7 +145,7 @@ export default class AIAgentPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()) as AIAgentSettings;
     this.chatModelContextFingerprint = this.getChatModelContextFingerprint();
   }
 
@@ -573,12 +573,12 @@ export default class AIAgentPlugin extends Plugin {
     const result = await executor.execute("query_graph", { filter });
 
     try {
-      const data = JSON.parse(result.content);
+      const data = JSON.parse(result.content) as { matchCount?: unknown; nodes?: { path?: string }[] };
       matchCount = typeof data.matchCount === "number" ? data.matchCount : 0;
       matchedPaths = Array.isArray(data.nodes)
         ? data.nodes
-            .map((n: { path?: string }) => n.path)
-            .filter((p: unknown): p is string => typeof p === "string")
+            .map((n) => n.path)
+            .filter((p): p is string => typeof p === "string")
         : [];
     } catch (e) {
       console.error("Failed to parse graph query result:", e);

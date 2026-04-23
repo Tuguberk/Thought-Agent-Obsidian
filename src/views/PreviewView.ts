@@ -60,7 +60,7 @@ export class PreviewView extends ItemView {
       this.callbacks.onApprove(change)
       this.leaf.detach()
     } catch (e) {
-      new Notice(`Failed to apply change: ${e.message}`)
+      new Notice(`Failed to apply change: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

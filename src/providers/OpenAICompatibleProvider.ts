@@ -47,7 +47,7 @@ function parseXmlToolCalls(text: string): OAIToolCall[] {
 
   // Match complete <tool_call>...</tool_call> blocks OR a truncated one at the end of text
   const tcRegex = /<tool_call>([\s\S]*?)(?:<\/tool_call>|$)/g;
-  let tcMatch;
+  let tcMatch: RegExpExecArray | null;
   while ((tcMatch = tcRegex.exec(text)) !== null) {
     const inner = tcMatch[1];
     if (!inner.trim()) continue;
@@ -65,7 +65,7 @@ function parseXmlToolCalls(text: string): OAIToolCall[] {
     // Match complete <parameter=K>V</parameter> OR a truncated last parameter
     const paramRegex =
       /<parameter=([^\s>]+)>([\s\S]*?)(?:<\/parameter>|(?=<parameter=)|$)/gs;
-    let paramMatch;
+    let paramMatch: RegExpExecArray | null;
     while ((paramMatch = paramRegex.exec(paramsText)) !== null) {
       const key = paramMatch[1].trim();
       // Strip any trailing incomplete closing tag artifact (e.g. "</param")
@@ -149,7 +149,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
       throw new Error(`LMStudio error ${res.status}: ${res.text}`);
     }
 
-    const data: OAIResponse = res.json;
+    const data = res.json as OAIResponse;
     const choice = data.choices[0];
     const msg = choice.message;
     const content: ContentBlock[] = [];
@@ -169,7 +169,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     for (const tc of toolCalls) {
       let input: Record<string, unknown> = {};
       try {
-        input = JSON.parse(tc.function.arguments);
+        input = JSON.parse(tc.function.arguments) as Record<string, unknown>;
       } catch {
         /* malformed */
       }
