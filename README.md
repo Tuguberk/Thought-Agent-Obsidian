@@ -312,54 +312,7 @@ The agent has **14 tools** across two categories:
 
 ---
 
-## 📂 Project Structure
-
-```
-thought-obsidian/
-├── src/
-│   ├── agent/
-│   │   ├── AgentLoop.ts          # Iterative tool-use reasoning loop
-│   │   ├── SystemPrompt.ts       # Dynamic system prompt builder
-│   │   ├── ToolExecutor.ts       # Dispatches tool calls, builds results
-│   │   └── SessionContext.ts     # Per-session filters & active file context
-│   │
-│   ├── retrieval/
-│   │   ├── HybridSearch.ts       # Fuses semantic + BM25 scores
-│   │   ├── Embedder.ts           # Local embedding via Transformers.js
-│   │   ├── VectorStore.ts        # In-memory vector index
-│   │   ├── BM25.ts               # Keyword scoring
-│   │   ├── GraphEnhanced.ts      # Link-aware re-ranking
-│   │   ├── MMR.ts                # Maximal marginal relevance
-│   │   ├── Chunker.ts            # Heading-aware note chunking
-│   │   └── Indexer.ts            # Full vault indexing & persistence
-│   │
-│   ├── excalidraw/
-│   │   ├── DiagramLayoutEngine.ts  # Deterministic node placement
-│   │   ├── DiagramExtractor.ts     # Parse .excalidraw → structured data
-│   │   ├── DiagramIndexer.ts       # Semantic index for diagrams
-│   │   ├── DiagramWatcher.ts       # Hot-reload on file change
-│   │   └── ExcalidrawAdapter.ts    # Plugin API bridge
-│   │
-│   ├── providers/
-│   │   ├── LLMProvider.ts              # Common interface
-│   │   ├── AnthropicProvider.ts        # Claude API adapter
-│   │   └── OpenAICompatibleProvider.ts # LM Studio / any OpenAI-compat
-│   │
-│   ├── views/
-│   │   └── ChatView.ts           # Main chat UI, streaming responses
-│   │
-│   ├── changes/                  # Pending change model & apply flow
-│   ├── tools/                    # Tool schema definitions
-│   └── settings.ts               # Plugin settings & UI
-│
-├── styles.css                    # Plugin UI styles
-├── manifest.json                 # Obsidian plugin manifest
-└── esbuild.config.mjs            # Build configuration
-```
-
----
-
-## ⚡ Getting Started
+## ⚡ Getting Started to Development
 
 ### Requirements
 
@@ -389,51 +342,6 @@ npm run dev
 ```bash
 npm run build
 ```
-
----
-
-## ⚙️ Configuration
-
-Open **Obsidian → Settings → Thought Agent** and configure:
-
-```
-📡 Provider
-├── Anthropic   → API key + Claude model selection
-└── LM Studio   → Base URL (localhost:1234/v1) + model name
-
-🤖 Agent
-└── Max iterations  (default: 15, range: 3–30)
-
-🔢 Embeddings
-└── Embedding model  (default: all-MiniLM-L6-v2, ~25 MB first download)
-
-🎨 Excalidraw
-├── Enable diagram watcher   (auto re-index on file change)
-├── Default diagram folder   (base path for new diagrams)
-└── Note embed style         (![[embed]] or [[link]])
-```
-
----
-
-## 🚀 Suggested Workflow
-
-```
-1. 🗄️  Re-index your vault  (Settings → Re-index vault)
-2. 💬  Ask anything         "What do my notes say about..."
-3. 🔍  Agent searches       Hybrid retrieval across your vault
-4. 🧩  Agent reasons        Traverses links, builds context
-5. 👁️  Review proposals     Safe diff/preview before any write
-6. ✅  Approve selectively   Only accepted changes hit disk
-```
-
----
-
-## 🔒 Privacy First
-
-- **No telemetry.** Zero data sent anywhere except your chosen LLM provider.
-- **Vault-local embeddings.** Transformers.js runs entirely in-process; note text never leaves your machine for embeddings.
-- **LM Studio mode.** If you use a local model, your prompts never leave your computer, period.
-- **Approval gate.** Every proposed write requires explicit user confirmation.
 
 ---
 
