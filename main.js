@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => AIAgentPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian12 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -569,9 +569,9 @@ var ChatView = class extends import_obsidian2.ItemView {
       const modelInside = this.modelMenuBtn?.contains(target) || this.modelMenuEl?.contains(target);
       if (!modeInside && !modelInside) this.closeMenus();
     };
-    document.addEventListener("mousedown", outsideHandler);
+    activeDocument.addEventListener("mousedown", outsideHandler);
     this.disposeOutsideMenuListener = () => {
-      document.removeEventListener("mousedown", outsideHandler);
+      activeDocument.removeEventListener("mousedown", outsideHandler);
     };
   }
   onClose() {
@@ -886,9 +886,49 @@ var ChatView = class extends import_obsidian2.ItemView {
 };
 
 // src/views/PreviewView.ts
+var import_obsidian4 = require("obsidian");
+
+// src/changes/PendingChange.ts
 var import_obsidian3 = require("obsidian");
+async function openChangedFile(app, path) {
+  const isDiagram = path.endsWith(".excalidraw") || path.endsWith(".excalidraw.md");
+  if (isDiagram) {
+    const file = app.vault.getFileByPath(path);
+    if (file instanceof import_obsidian3.TFile) {
+      const leaf = app.workspace.getLeaf("tab");
+      await leaf.openFile(file);
+    }
+  } else {
+    await app.workspace.openLinkText(path, "", false);
+  }
+}
+function getChangePrimaryPath(change) {
+  switch (change.kind) {
+    case "create":
+      return change.note.path;
+    case "edit":
+      return change.notePath;
+    case "link":
+      return change.notePath;
+    case "create_diagram":
+      return change.filePath;
+    case "update_diagram":
+      return change.filePath;
+    case "annotate_diagram":
+      return change.diagramPath;
+    case "reorganize": {
+      for (const step of change.steps) {
+        const p = getChangePrimaryPath(step);
+        if (p) return p;
+      }
+      return null;
+    }
+  }
+}
+
+// src/views/PreviewView.ts
 var PREVIEW_VIEW_TYPE = "ai-agent-preview";
-var PreviewView = class extends import_obsidian3.ItemView {
+var PreviewView = class extends import_obsidian4.ItemView {
   change = null;
   applier;
   callbacks;
@@ -937,9 +977,13 @@ var PreviewView = class extends import_obsidian3.ItemView {
       const change = this.change;
       this.change = null;
       this.callbacks.onApprove(change);
+      const path = getChangePrimaryPath(change);
       this.leaf.detach();
+      if (path) {
+        await openChangedFile(this.app, path);
+      }
     } catch (e) {
-      new import_obsidian3.Notice(`Failed to apply change: ${e.message}`);
+      new import_obsidian4.Notice(`Failed to apply change: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
   doReject() {
@@ -999,7 +1043,7 @@ var PreviewView = class extends import_obsidian3.ItemView {
     }
     container.createEl("h3", { text: "Content preview" });
     const preview = container.createDiv("ai-preview-content");
-    void import_obsidian3.MarkdownRenderer.render(this.app, change.note.content, preview, "", this);
+    void import_obsidian4.MarkdownRenderer.render(this.app, change.note.content, preview, "", this);
   }
   renderEdit(container, change) {
     container.createEl("p", { text: `File: ${change.notePath}`, cls: "ai-preview-meta" });
@@ -1095,9 +1139,9 @@ var PreviewView = class extends import_obsidian3.ItemView {
 };
 
 // src/views/GraphQueryView.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 var GRAPH_VIEW_TYPE = "ai-agent-graph";
-var GraphQueryView = class extends import_obsidian4.ItemView {
+var GraphQueryView = class extends import_obsidian5.ItemView {
   nodes = [];
   edges = [];
   filterDescription = "";
@@ -1220,7 +1264,7 @@ var GraphQueryView = class extends import_obsidian4.ItemView {
     const w = this.canvas.width;
     const h = this.canvas.height;
     ctx.clearRect(0, 0, w, h);
-    const isDark = document.body.classList.contains("theme-dark");
+    const isDark = activeDocument.body.classList.contains("theme-dark");
     const edgeColor = isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)";
     const nodeColor = isDark ? "#7c6af7" : "#6b57d1";
     const textColor = isDark ? "#e0e0e0" : "#333";
@@ -4037,7 +4081,7 @@ var AnthropicProvider = class {
 };
 
 // src/providers/OpenAICompatibleProvider.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 function parseXmlToolCalls(text) {
   const results = [];
   const tcRegex = /<tool_call>([\s\S]*?)(?:<\/tool_call>|$)/g;
@@ -4111,7 +4155,7 @@ var OpenAICompatibleProvider = class {
     if (this.apiKey && this.apiKey !== "lm-studio") {
       headers["Authorization"] = `Bearer ${this.apiKey}`;
     }
-    const res = await (0, import_obsidian5.requestUrl)({
+    const res = await (0, import_obsidian6.requestUrl)({
       url: `${this.baseUrl}/chat/completions`,
       method: "POST",
       headers,
@@ -4820,7 +4864,7 @@ var AgentLoop = class {
 };
 
 // src/agent/ToolExecutor.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/utils/cosine.ts
 function cosineSimilarity(a, b) {
@@ -4981,7 +5025,7 @@ function mmr(candidates, finalK, lambda = 0.7) {
 }
 
 // src/retrieval/Embedder.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var pipelineInstance = null;
 var localModelName = "Xenova/all-MiniLM-L6-v2";
 var loading = false;
@@ -4999,8 +5043,8 @@ async function initEmbedder(config) {
   currentConfigKey = key;
   ready = false;
   if (config.provider === "local") {
-    if (import_obsidian6.Platform.isMobile) {
-      new import_obsidian6.Notice(
+    if (import_obsidian7.Platform.isMobile) {
+      new import_obsidian7.Notice(
         "Semantic search unavailable on mobile: local embedding model requires desktop. Set an OpenAI or Google embedding provider in settings to enable it on mobile.",
         8e3
       );
@@ -5011,12 +5055,12 @@ async function initEmbedder(config) {
     return;
   }
   if (!config.apiKey) {
-    new import_obsidian6.Notice("Embedding API key not set \u2014 semantic search disabled. Add your key in settings \u2192 embeddings.");
+    new import_obsidian7.Notice("Embedding API key not set \u2014 semantic search disabled. Add your key in settings \u2192 embeddings.");
     return;
   }
   ready = true;
   const providerName = config.provider === "openai" ? "OpenAI" : "Google";
-  new import_obsidian6.Notice(`Embedding provider: ${providerName} (${config.apiModel})`);
+  new import_obsidian7.Notice(`Embedding provider: ${providerName} (${config.apiModel})`);
 }
 async function initLocalPipeline(model, pluginDir) {
   if (pipelineInstance && localModelName === model) {
@@ -5028,7 +5072,7 @@ async function initLocalPipeline(model, pluginDir) {
   loading = true;
   loadPromise = (async () => {
     try {
-      new import_obsidian6.Notice("Loading embedding model\u2026");
+      new import_obsidian7.Notice("Loading embedding model\u2026");
       const transformers = require(`${pluginDir}/node_modules/@xenova/transformers`);
       const pipeline = transformers.pipeline;
       const env = transformers.env;
@@ -5036,9 +5080,9 @@ async function initLocalPipeline(model, pluginDir) {
       env.allowLocalModels = false;
       env.allowRemoteModels = true;
       pipelineInstance = await pipeline("feature-extraction", model);
-      new import_obsidian6.Notice("Embedding model loaded.");
+      new import_obsidian7.Notice("Embedding model loaded.");
     } catch (e) {
-      new import_obsidian6.Notice(`Failed to load embedding model: ${e.message}`);
+      new import_obsidian7.Notice(`Failed to load embedding model: ${e instanceof Error ? e.message : String(e)}`);
       throw e;
     } finally {
       loading = false;
@@ -5087,7 +5131,7 @@ async function embedBatch(texts, onProgress) {
   return results;
 }
 async function embedWithOpenAI(texts, apiKey, model) {
-  const res = await (0, import_obsidian6.requestUrl)({
+  const res = await (0, import_obsidian7.requestUrl)({
     url: "https://api.openai.com/v1/embeddings",
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -5099,7 +5143,7 @@ async function embedWithOpenAI(texts, apiKey, model) {
   return data.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
 }
 async function embedWithGoogle(text, apiKey, model) {
-  const res = await (0, import_obsidian6.requestUrl)({
+  const res = await (0, import_obsidian7.requestUrl)({
     url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -5122,7 +5166,7 @@ async function embedBatchWithGoogle(texts, apiKey, model, onProgress) {
       model: `models/${model}`,
       content: { parts: [{ text }] }
     }));
-    const res = await (0, import_obsidian6.requestUrl)({
+    const res = await (0, import_obsidian7.requestUrl)({
       url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${apiKey}`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -5137,7 +5181,7 @@ async function embedBatchWithGoogle(texts, apiKey, model, onProgress) {
   return results;
 }
 function yieldToUI() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => activeWindow.setTimeout(resolve, 0));
 }
 
 // src/excalidraw/DiagramExtractor.ts
@@ -6019,7 +6063,7 @@ var ToolExecutor = class {
           return { content: `Unknown tool: ${toolName}` };
       }
     } catch (e) {
-      return { content: `Error executing ${toolName}: ${e.message}` };
+      return { content: `Error executing ${toolName}: ${e instanceof Error ? e.message : String(e)}` };
     }
   }
   applySessionFilters(chunks) {
@@ -6078,7 +6122,7 @@ var ToolExecutor = class {
   async getNote(input) {
     const notePath = input.notePath;
     const file = this.app.vault.getFileByPath(notePath);
-    if (!file || !(file instanceof import_obsidian7.TFile)) {
+    if (!file || !(file instanceof import_obsidian8.TFile)) {
       return { content: `Note not found: ${notePath}` };
     }
     const content = await this.app.vault.read(file);
@@ -6120,7 +6164,7 @@ var ToolExecutor = class {
     const expand = (currentPath, currentDepth) => {
       if (currentDepth === 0) return;
       const f = this.app.vault.getFileByPath(currentPath);
-      if (!f || !(f instanceof import_obsidian7.TFile)) return;
+      if (!f || !(f instanceof import_obsidian8.TFile)) return;
       const cache = this.app.metadataCache.getFileCache(f);
       if (cache?.links) {
         for (const link of cache.links) {
@@ -6163,7 +6207,7 @@ var ToolExecutor = class {
   getBacklinks(input) {
     const notePath = input.notePath;
     const file = this.app.vault.getFileByPath(notePath);
-    if (!file || !(file instanceof import_obsidian7.TFile))
+    if (!file || !(file instanceof import_obsidian8.TFile))
       return { content: `Note not found: ${notePath}` };
     const backlinkPaths = this.getBacklinkPaths(file.path);
     if (backlinkPaths.length === 0) return { content: "[]" };
@@ -6323,7 +6367,7 @@ tags: [${tags.join(", ")}]
     const notePath = input.notePath;
     const newContent = input.newContent;
     const file = this.app.vault.getFileByPath(notePath);
-    if (!file || !(file instanceof import_obsidian7.TFile)) {
+    if (!file || !(file instanceof import_obsidian8.TFile)) {
       return { content: `Note not found: ${notePath}` };
     }
     const originalContent = await this.app.vault.read(file);
@@ -6345,7 +6389,7 @@ tags: [${tags.join(", ")}]
     const linkText = input.linkText;
     const insertionPoint = input.insertionPoint;
     const file = this.app.vault.getFileByPath(from);
-    if (!file || !(file instanceof import_obsidian7.TFile)) {
+    if (!file || !(file instanceof import_obsidian8.TFile)) {
       return { content: `Source note not found: ${from}` };
     }
     const originalContent = await this.app.vault.read(file);
@@ -6435,7 +6479,7 @@ tags: [${tags.join(", ")}]
     const filePath = input.filePath;
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath);
-      if (!file || !(file instanceof import_obsidian7.TFile))
+      if (!file || !(file instanceof import_obsidian8.TFile))
         return { content: `Diagram not found: ${filePath}` };
       const isDiagramFile = await this.excalidraw.isExcalidrawFile(filePath);
       if (!isDiagramFile) {
@@ -6699,7 +6743,7 @@ var VectorStore = class {
     this.dataPath = dataPath;
   }
   getVaultAdapter() {
-    const app = window.app;
+    const app = activeWindow.app;
     const adapter = app?.vault?.adapter;
     if (!adapter) throw new Error("Obsidian vault adapter is not available");
     return adapter;
@@ -6726,7 +6770,7 @@ var VectorStore = class {
   scheduleSave() {
     if (this.saveScheduled) return;
     this.saveScheduled = true;
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       void this.save().finally(() => {
         this.saveScheduled = false;
       });
@@ -6791,7 +6835,7 @@ var VectorStore = class {
 };
 
 // src/retrieval/Indexer.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/utils/hash.ts
 function hashString(str) {
@@ -6921,19 +6965,19 @@ var Indexer = class {
   }
   async reindexAll() {
     if (this.indexing) {
-      new import_obsidian8.Notice("Indexing already in progress.");
+      new import_obsidian9.Notice("Indexing already in progress.");
       return;
     }
     this.indexing = true;
     const files = this.app.vault.getMarkdownFiles();
     const embeddingAvailable = isEmbeddingAvailable();
-    new import_obsidian8.Notice(`Indexing ${files.length} notes${embeddingAvailable ? "" : " (keyword-only \u2014 no embedding provider)"}\u2026`);
+    new import_obsidian9.Notice(`Indexing ${files.length} notes${embeddingAvailable ? "" : " (keyword-only \u2014 no embedding provider)"}\u2026`);
     let done = 0;
     for (const file of files) {
       await this.indexFile(file);
       done++;
       if (done % 10 === 0) {
-        new import_obsidian8.Notice(`Indexing\u2026 ${done}/${files.length}`, 1e3);
+        new import_obsidian9.Notice(`Indexing\u2026 ${done}/${files.length}`, 1e3);
       }
     }
     this.plugin.settings.indexedNotesCount = this.store.noteCount();
@@ -6942,7 +6986,7 @@ var Indexer = class {
     await this.plugin.saveSettings();
     await this.store.save();
     this.indexing = false;
-    new import_obsidian8.Notice(`Indexing complete: ${this.store.noteCount()} notes, ${this.store.size()} chunks.`);
+    new import_obsidian9.Notice(`Indexing complete: ${this.store.noteCount()} notes, ${this.store.size()} chunks.`);
   }
   async indexFile(file) {
     try {
@@ -6980,23 +7024,23 @@ var Indexer = class {
   }
   registerWatcher() {
     this.app.vault.on("modify", async (file) => {
-      if (file instanceof import_obsidian8.TFile && file.extension === "md") {
+      if (file instanceof import_obsidian9.TFile && file.extension === "md") {
         await this.indexSingleFile(file);
       }
     });
     this.app.vault.on("create", async (file) => {
-      if (file instanceof import_obsidian8.TFile && file.extension === "md") {
+      if (file instanceof import_obsidian9.TFile && file.extension === "md") {
         await this.indexSingleFile(file);
       }
     });
     this.app.vault.on("delete", (file) => {
-      if (file instanceof import_obsidian8.TFile && file.extension === "md") {
+      if (file instanceof import_obsidian9.TFile && file.extension === "md") {
         this.store.removeChunksForNote(file.path);
         this.store.scheduleSave();
       }
     });
     this.app.vault.on("rename", async (file, oldPath) => {
-      if (file instanceof import_obsidian8.TFile && file.extension === "md") {
+      if (file instanceof import_obsidian9.TFile && file.extension === "md") {
         this.store.removeChunksForNote(oldPath);
         await this.indexSingleFile(file);
       }
@@ -7005,7 +7049,7 @@ var Indexer = class {
 };
 
 // src/changes/ChangeApplier.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 var ChangeApplier = class {
   constructor(app, excalidraw) {
     this.app = app;
@@ -7053,19 +7097,19 @@ var ChangeApplier = class {
       }
       await this.app.vault.create(change.note.path, change.note.content);
     }
-    new import_obsidian9.Notice(`Created: ${change.note.path}`);
+    new import_obsidian10.Notice(`Created: ${change.note.path}`);
   }
   async applyEdit(change) {
     const file = this.app.vault.getFileByPath(change.notePath);
-    if (!file || !(file instanceof import_obsidian9.TFile)) {
+    if (!file || !(file instanceof import_obsidian10.TFile)) {
       throw new Error(`File not found: ${change.notePath}`);
     }
     await this.app.vault.modify(file, change.newContent);
-    new import_obsidian9.Notice(`Edited: ${change.notePath}`);
+    new import_obsidian10.Notice(`Edited: ${change.notePath}`);
   }
   async applyLink(change) {
     const file = this.app.vault.getFileByPath(change.notePath);
-    if (!file || !(file instanceof import_obsidian9.TFile)) {
+    if (!file || !(file instanceof import_obsidian10.TFile)) {
       throw new Error(`File not found: ${change.notePath}`);
     }
     const content = change.originalContent;
@@ -7073,34 +7117,34 @@ var ChangeApplier = class {
     const after = content.slice(change.insertionPoint);
     const newContent = before + "\n" + change.linkText + "\n" + after;
     await this.app.vault.modify(file, newContent);
-    new import_obsidian9.Notice(`Linked: ${change.notePath}`);
+    new import_obsidian10.Notice(`Linked: ${change.notePath}`);
   }
   async applyCreateDiagram(change) {
     if (!this.excalidraw) throw new Error("Excalidraw adapter not available");
     await this.excalidraw.writeFile(change.filePath, change.content);
-    new import_obsidian9.Notice(`Diagram created: ${change.filePath}`);
+    new import_obsidian10.Notice(`Diagram created: ${change.filePath}`);
   }
   async applyUpdateDiagram(change) {
     if (!this.excalidraw) throw new Error("Excalidraw adapter not available");
     await this.excalidraw.writeFile(change.filePath, change.updatedContent);
-    new import_obsidian9.Notice(`Diagram updated: ${change.filePath}`);
+    new import_obsidian10.Notice(`Diagram updated: ${change.filePath}`);
   }
   async applyAnnotateDiagram(change) {
     if (!this.excalidraw) throw new Error("Excalidraw adapter not available");
     const noteFile = this.app.vault.getFileByPath(change.notePath);
-    if (noteFile instanceof import_obsidian9.TFile) {
+    if (noteFile instanceof import_obsidian10.TFile) {
       const current = await this.app.vault.read(noteFile);
       await this.app.vault.modify(noteFile, current + "\n" + change.noteAddition);
     }
     const diagram = await this.excalidraw.readFile(change.diagramPath);
     diagram.elements.push(change.diagramAddition);
     await this.excalidraw.writeFile(change.diagramPath, diagram);
-    new import_obsidian9.Notice(`Annotated: ${change.notePath} \u2194 ${change.diagramPath}`);
+    new import_obsidian10.Notice(`Annotated: ${change.notePath} \u2194 ${change.diagramPath}`);
   }
 };
 
 // src/excalidraw/ExcalidrawAdapter.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 function getExcalidrawAPI(app) {
   const plugins = app.plugins?.plugins;
   return plugins?.["obsidian-excalidraw-plugin"]?.ea ?? null;
@@ -7126,12 +7170,13 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
   }
   async isExcalidrawFile(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian10.TFile)) return false;
+    if (!(file instanceof import_obsidian11.TFile)) return false;
     if (file.extension === "excalidraw") return true;
     if (file.extension !== "md") return false;
     const cache = this.app.metadataCache.getFileCache(file);
     const frontmatter = cache?.frontmatter ?? {};
-    const marker = String(frontmatter["excalidraw-plugin"] ?? "").toLowerCase().trim();
+    const fm = frontmatter["excalidraw-plugin"];
+    const marker = (typeof fm === "string" ? fm : "").toLowerCase().trim();
     if (["parsed", "raw", "true", "1"].includes(marker)) return true;
     const content = await this.app.vault.cachedRead(file);
     return this.looksLikeExcalidrawMarkdown(content);
@@ -7141,7 +7186,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
   }
   async getElementsFromFile(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file || !(file instanceof import_obsidian10.TFile))
+    if (!file || !(file instanceof import_obsidian11.TFile))
       throw new Error(`File not found: ${filePath}`);
     const content = await this.app.vault.read(file);
     const parsed = JSON.parse(content);
@@ -7149,7 +7194,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
   }
   async readFile(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file || !(file instanceof import_obsidian10.TFile))
+    if (!file || !(file instanceof import_obsidian11.TFile))
       throw new Error(`File not found: ${filePath}`);
     const content = await this.app.vault.read(file);
     return JSON.parse(content);
@@ -7157,7 +7202,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
   async writeFile(filePath, content) {
     const json = JSON.stringify(content, null, 2);
     const existing = this.app.vault.getAbstractFileByPath(filePath);
-    if (existing instanceof import_obsidian10.TFile) {
+    if (existing instanceof import_obsidian11.TFile) {
       await this.app.vault.modify(existing, json);
     } else {
       const parts = filePath.split("/");
@@ -7199,7 +7244,8 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        resolve(String(reader.result).split(",")[1] ?? "");
+        const result = reader.result;
+        resolve(typeof result === "string" ? result.split(",")[1] ?? "" : "");
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
@@ -7220,10 +7266,6 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
       if (typeof atob === "function") {
         const head = atob(normalized.slice(0, 24));
         bytes = Array.from(head, (c) => c.charCodeAt(0));
-      } else if (typeof Buffer !== "undefined") {
-        bytes = Array.from(
-          Buffer.from(normalized.slice(0, 24), "base64").subarray(0, 8)
-        );
       } else {
         return false;
       }
@@ -7314,7 +7356,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
   }
   async readPngFromVault(filePath) {
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian10.TFile)) return null;
+    if (!(file instanceof import_obsidian11.TFile)) return null;
     if (file.extension.toLowerCase() !== "png") return null;
     try {
       const binary = await this.app.vault.readBinary(file);
@@ -7335,7 +7377,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
     const ea = this.getEA();
     if (!ea?.reset || !ea?.loadFile || !ea?.getElements) return null;
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian10.TFile)) return null;
+    if (!(file instanceof import_obsidian11.TFile)) return null;
     try {
       await this.setTargetViewForFile(ea, filePath);
       ea.reset();
@@ -7353,7 +7395,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
     const ea = this.getEA();
     if (!ea?.createPNG) return null;
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian10.TFile)) return null;
+    if (!(file instanceof import_obsidian11.TFile)) return null;
     const scales = [1, 0.8, 0.5];
     await this.setTargetViewForFile(ea, filePath);
     for (const scale of scales) {
@@ -7387,7 +7429,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
 };
 
 // src/excalidraw/DiagramIndexer.ts
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 var DiagramIndexer = class {
   constructor(app, store, excalidraw) {
     this.app = app;
@@ -7410,7 +7452,7 @@ var DiagramIndexer = class {
   async reindexFile(filePath) {
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath);
-      if (!(file instanceof import_obsidian11.TFile)) return;
+      if (!(file instanceof import_obsidian12.TFile)) return;
       const elements = this.excalidraw ? await this.excalidraw.getDecompressedElements(filePath) : null;
       const extracted = elements ? this.extractor.extractFromElements(filePath, elements) : this.extractor.extract(filePath, await this.app.vault.read(file));
       const embedding = await embed(extracted.rawTextContent);
@@ -7458,7 +7500,7 @@ var DiagramWatcher = class {
   }
   debounce(path) {
     this.cancelDebounce(path);
-    this.timers.set(path, setTimeout(() => {
+    this.timers.set(path, activeWindow.setTimeout(() => {
       this.timers.delete(path);
       void this.indexer.reindexFile(path);
     }, 2e3));
@@ -7466,14 +7508,14 @@ var DiagramWatcher = class {
   cancelDebounce(path) {
     const t = this.timers.get(path);
     if (t) {
-      clearTimeout(t);
+      activeWindow.clearTimeout(t);
       this.timers.delete(path);
     }
   }
 };
 
 // src/main.ts
-var AIAgentPlugin = class extends import_obsidian12.Plugin {
+var AIAgentPlugin = class extends import_obsidian13.Plugin {
   settings;
   vectorStore;
   indexer;
@@ -7542,7 +7584,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       callback: async () => {
         const provider = this.buildProvider();
         if (!provider) {
-          new import_obsidian12.Notice("No provider configured. Go to settings \u2192 thought agent.");
+          new import_obsidian13.Notice("No provider configured. Go to settings \u2192 thought agent.");
           return;
         }
         try {
@@ -7552,11 +7594,11 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
             "You are a helpful assistant."
           );
           const text = resp.content.find((b) => b.type === "text");
-          new import_obsidian12.Notice(
+          new import_obsidian13.Notice(
             `Connection OK: ${text?.text ?? "no response"}`
           );
         } catch (e) {
-          new import_obsidian12.Notice(`Connection failed: ${e.message}`);
+          new import_obsidian13.Notice(`Connection failed: ${e.message}`);
         }
       }
     });
@@ -7650,20 +7692,25 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
     const changes = [...this.pendingChanges];
     if (changes.length === 0) return;
     let approved = 0;
+    let firstPath = null;
     for (const change of changes) {
       try {
         await this.applier.apply(change);
+        if (!firstPath) firstPath = getChangePrimaryPath(change);
         this.removePending(change);
         approved++;
       } catch (e) {
-        new import_obsidian12.Notice(`Failed to apply change: ${e.message}`);
+        new import_obsidian13.Notice(`Failed to apply change: ${e.message}`);
       }
     }
     for (const leaf of this.app.workspace.getLeavesOfType(PREVIEW_VIEW_TYPE)) {
       leaf.view.markHandled();
       leaf.detach();
     }
-    new import_obsidian12.Notice(`Approved ${approved} change${approved !== 1 ? "s" : ""}.`);
+    if (firstPath) {
+      await openChangedFile(this.app, firstPath);
+    }
+    new import_obsidian13.Notice(`Approved ${approved} change${approved !== 1 ? "s" : ""}.`);
   }
   rejectAll() {
     const count = this.pendingChanges.length;
@@ -7674,12 +7721,12 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       leaf.view.markHandled();
       leaf.detach();
     }
-    new import_obsidian12.Notice(`Rejected ${count} change${count !== 1 ? "s" : ""}.`);
+    new import_obsidian13.Notice(`Rejected ${count} change${count !== 1 ? "s" : ""}.`);
   }
   // ── Provider / agent ─────────────────────────────────────────────────────
   getPluginDir() {
     const adapter = this.app.vault.adapter;
-    if (adapter instanceof import_obsidian12.FileSystemAdapter) {
+    if (adapter instanceof import_obsidian13.FileSystemAdapter) {
       return `${adapter.getBasePath()}/${this.manifest.dir ?? ""}`;
     }
     return this.manifest.dir ?? "";
@@ -7743,7 +7790,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
     const current = this.getActiveModel();
     try {
       if (this.settings.provider === "lmstudio") {
-        const res2 = await (0, import_obsidian12.requestUrl)({
+        const res2 = await (0, import_obsidian13.requestUrl)({
           url: `${this.settings.lmstudioBaseUrl}/models`,
           throw: false
         });
@@ -7762,7 +7809,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
           ])
         );
       }
-      const res = await (0, import_obsidian12.requestUrl)({
+      const res = await (0, import_obsidian13.requestUrl)({
         url: "https://api.anthropic.com/v1/models",
         method: "GET",
         headers: {
@@ -7996,7 +8043,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
         else await this.app.vault.create(candidate.path, hubContent);
         hubPath = candidate.path;
         if (!candidate.hidden) {
-          new import_obsidian12.Notice(
+          new import_obsidian13.Notice(
             "Hidden graph note path is blocked by current vault settings. Using AI Agent/Graph Query Results.md fallback."
           );
         }
@@ -8012,7 +8059,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
         hubErrors
       );
       const reason = hubErrors[0] ? ` (${hubErrors[0]})` : "";
-      new import_obsidian12.Notice(`Could not create graph query note${reason}`);
+      new import_obsidian13.Notice(`Could not create graph query note${reason}`);
       const fallbackPath = filter.linkedTo ?? matchedPaths[0] ?? null;
       if (fallbackPath) {
         const fallbackFile = this.app.vault.getFileByPath(fallbackPath);
@@ -8029,7 +8076,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
             if (commands?.commands?.[id]) {
               const ok = commands.executeCommandById?.(id);
               if (ok) {
-                new import_obsidian12.Notice("Opened local graph on top filtered match.");
+                new import_obsidian13.Notice("Opened local graph on top filtered match.");
                 return;
               }
             }
@@ -8041,7 +8088,7 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
             state: { file: fallbackPath }
           });
           void this.app.workspace.revealLeaf(localLeaf);
-          new import_obsidian12.Notice("Opened local graph on top filtered match.");
+          new import_obsidian13.Notice("Opened local graph on top filtered match.");
           return;
         }
       }
@@ -8083,6 +8130,6 @@ var AIAgentPlugin = class extends import_obsidian12.Plugin {
       void this.app.workspace.revealLeaf(leaf);
     }
     const mode = openedLocal ? "Local Graph" : "Graph";
-    new import_obsidian12.Notice(`Opened Obsidian ${mode}. Matched notes: ${matchCount}.`);
+    new import_obsidian13.Notice(`Opened Obsidian ${mode}. Matched notes: ${matchCount}.`);
   }
 };

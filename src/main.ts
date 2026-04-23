@@ -21,6 +21,7 @@ import {
   type SessionContext,
 } from "./agent/SessionContext";
 import type { PendingChange } from "./changes/PendingChange";
+import { getChangePrimaryPath, openChangedFile } from "./changes/PendingChange";
 import { ExcalidrawAdapter } from "./excalidraw/ExcalidrawAdapter";
 import { DiagramIndexer } from "./excalidraw/DiagramIndexer";
 import { DiagramWatcher } from "./excalidraw/DiagramWatcher";
@@ -239,9 +240,11 @@ export default class AIAgentPlugin extends Plugin {
     if (changes.length === 0) return;
 
     let approved = 0;
+    let firstPath: string | null = null;
     for (const change of changes) {
       try {
         await this.applier.apply(change);
+        if (!firstPath) firstPath = getChangePrimaryPath(change);
         this.removePending(change);
         approved++;
       } catch (e) {
@@ -253,6 +256,10 @@ export default class AIAgentPlugin extends Plugin {
     for (const leaf of this.app.workspace.getLeavesOfType(PREVIEW_VIEW_TYPE)) {
       (leaf.view as PreviewView).markHandled();
       leaf.detach();
+    }
+
+    if (firstPath) {
+      await openChangedFile(this.app, firstPath);
     }
 
     new Notice(`Approved ${approved} change${approved !== 1 ? "s" : ""}.`);
