@@ -278,18 +278,18 @@ The agent has **14 tools** across two categories:
 <details>
 <summary><strong>📚 Vault Tools (always available)</strong></summary>
 
-| Tool                     | Description                                             |
-| ------------------------ | ------------------------------------------------------- |
-| `search_notes`           | Hybrid semantic + keyword search over the entire vault  |
-| `get_note`               | Fetch full content of any note by path                  |
-| `get_neighbors`          | Walk outgoing/incoming links to depth N                 |
-| `get_backlinks`          | Find all notes pointing to a target note                |
+| Tool                     | Description                                                         |
+| ------------------------ | ------------------------------------------------------------------- |
+| `search_notes`           | Hybrid semantic + keyword search over the entire vault              |
+| `get_note`               | Fetch full content of any note by path                              |
+| `get_neighbors`          | Walk outgoing/incoming links to depth N                             |
+| `get_backlinks`          | Find all notes pointing to a target note                            |
 | `query_graph`            | Filter & visualize a subgraph (opens visual graph view) — see below |
-| `create_note`            | Propose a new note (preview → approval)                 |
-| `edit_note`              | Propose changes to an existing note (diff preview)      |
-| `link_notes`             | Add a wikilink between two notes (preview → approval)   |
-| `reorganize`             | Multi-step vault restructuring with per-step approval   |
-| `set_session_constraint` | Scope agent to specific tags/folders for the session    |
+| `create_note`            | Propose a new note (preview → approval)                             |
+| `edit_note`              | Propose changes to an existing note (diff preview)                  |
+| `link_notes`             | Add a wikilink between two notes (preview → approval)               |
+| `reorganize`             | Multi-step vault restructuring with per-step approval               |
+| `set_session_constraint` | Scope agent to specific tags/folders for the session                |
 
 </details>
 
@@ -437,7 +437,7 @@ Open **Obsidian → Settings → Thought Agent** and configure:
 
 ## 📄 License
 
-MIT © [Tugberk Akbulut](https://github.com/tugberkakbulut)
+MIT © [Tuğberk Akbulut](https://github.com/tuguberk)
 
 ---
 

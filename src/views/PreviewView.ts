@@ -1,5 +1,6 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer, Notice } from 'obsidian'
 import type { PendingChange } from '../changes/PendingChange'
+import { getChangePrimaryPath, openChangedFile } from '../changes/PendingChange'
 import type { ChangeApplier } from '../changes/ChangeApplier'
 
 export const PREVIEW_VIEW_TYPE = 'ai-agent-preview'
@@ -58,7 +59,11 @@ export class PreviewView extends ItemView {
       const change = this.change
       this.change = null
       this.callbacks.onApprove(change)
+      const path = getChangePrimaryPath(change)
       this.leaf.detach()
+      if (path) {
+        await openChangedFile(this.app, path)
+      }
     } catch (e) {
       new Notice(`Failed to apply change: ${e instanceof Error ? e.message : String(e)}`)
     }
