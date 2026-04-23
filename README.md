@@ -7,7 +7,7 @@
 **An AI-powered Obsidian plugin that treats your notes, links, and diagrams as a living knowledge graph.**
 
 [![Version](https://img.shields.io/badge/version-1.0.0-7c3aed?style=flat-square)](./manifest.json)
-[![Obsidian](https://img.shields.io/badge/Obsidian-1.4.0+-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://obsidian.md)
+[![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://obsidian.md)
 [![License](https://img.shields.io/badge/license-MIT-7c3aed?style=flat-square)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -103,6 +103,8 @@ This builds the local semantic index (~25 MB model download on first run). You o
 ### Step 3, Open the chat
 
 Click the **🧠 Thought Agent** icon in the left sidebar (or run _"Open Thought Agent chat"_ from the Command Palette).
+
+![Chat UI](github_assets/screenshots/chat-ui.png)
 
 **Example prompts to try:**
 
@@ -236,6 +238,8 @@ sequenceDiagram
 
 Generate, update, and search visual diagrams, directly from natural language.
 
+![Excalidraw Mindmap](github_assets/screenshots/excalidraw-mindmap.png)
+
 ```mermaid
 flowchart TD
     NL(["💬 'Create a mindmap\nof my ML notes'"]) --> EA["Excalidraw\nAgent Tools"]
@@ -280,7 +284,7 @@ The agent has **14 tools** across two categories:
 | `get_note`               | Fetch full content of any note by path                  |
 | `get_neighbors`          | Walk outgoing/incoming links to depth N                 |
 | `get_backlinks`          | Find all notes pointing to a target note                |
-| `query_graph`            | Filter & visualize a subgraph (opens visual graph view) |
+| `query_graph`            | Filter & visualize a subgraph (opens visual graph view) — see below |
 | `create_note`            | Propose a new note (preview → approval)                 |
 | `edit_note`              | Propose changes to an existing note (diff preview)      |
 | `link_notes`             | Add a wikilink between two notes (preview → approval)   |
@@ -288,6 +292,8 @@ The agent has **14 tools** across two categories:
 | `set_session_constraint` | Scope agent to specific tags/folders for the session    |
 
 </details>
+
+![Graph View](github_assets/screenshots/graph-view.jpg)
 
 <details>
 <summary><strong>🎨 Diagram Tools (requires Excalidraw plugin)</strong></summary>
@@ -355,7 +361,7 @@ thought-obsidian/
 
 ### Requirements
 
-- **Obsidian Desktop** 1.4.0+
+- **Obsidian Desktop** 1.7.2+
 - **Node.js** 18+
 - **npm**
 - _(Optional)_ [Excalidraw Obsidian plugin](https://github.com/zsviczian/obsidian-excalidraw-plugin) for diagram features
