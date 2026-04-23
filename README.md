@@ -194,14 +194,14 @@ flowchart LR
 
 ## 🔍 Retrieval Pipeline
 
-Every query runs through a **three-stage hybrid search** before the agent sees any context.
+Every query runs through a **multi-stage hybrid search** before the agent sees any context.
 
 ```mermaid
 flowchart LR
     Q["🔎 Query"] --> V["Vector Search\n(all-MiniLM-L6-v2)\nSemantic similarity"]
     Q --> B["BM25 Scoring\nKeyword frequency\n& TF-IDF"]
 
-    V --> F["🔀 Fusion\nRRF Score Merge"]
+    V --> F["🔀 Fusion\nMin-max normalize + weighted merge\n(0.7 semantic + 0.3 BM25)"]
     B --> F
 
     F --> GR["🕸️ Graph Re-ranking\nBoost linked neighbors\nof top results"]
