@@ -86,10 +86,10 @@ Open **Obsidian → Settings → Thought Agent** and pick your LLM provider:
 - Paste your [Anthropic API key](https://console.anthropic.com/) (`sk-ant-...`)
 - Select a model, **Claude Sonnet 4.6** is recommended for the best balance of speed and power
 
-**Using a local model (LM Studio):**
+**Using a local model (OpenAI compatible API):**
 
-- Download and open [LM Studio](https://lmstudio.ai), load any model, and start the local server
-- Set **Provider** → `LM Studio`
+- Start any OpenAI-compatible local server (e.g. [LM Studio](https://lmstudio.ai), [Ollama](https://ollama.com), llama.cpp)
+- Set **Provider** → `OpenAI compatible API`
 - Default URL is `http://localhost:1234/v1`, hit **Test** to confirm it's reachable
 - Your prompts never leave your machine 🔒
 
@@ -124,6 +124,17 @@ Click the **🧠 Thought Agent** icon in the left sidebar (or run _"Open Thought
 
 The agent will **never write to your vault without showing you a preview first**.  
 Every proposed note creation, edit, and diagram goes through a diff view, approve or reject each change individually.
+
+---
+
+## 🖼️ Multimodal Input
+
+Attach images and PDFs directly to your messages using the **+** button in the chat composer.
+
+- **Images** (JPEG, PNG, GIF, WEBP) — sent as-is to vision-capable models
+- **PDFs** — text is extracted client-side via Obsidian's built-in PDF.js and sent as readable content; no PDF data leaves your machine for local models
+- Attach multiple files at once; each appears as a chip with a thumbnail preview
+- Attachments are cleared automatically after each message
 
 ---
 
@@ -170,11 +181,11 @@ flowchart LR
         C3["Claude Haiku 4.5\n✦ Fastest"]
     end
 
-    subgraph LM["🖥️ LM Studio (Local)"]
-        L1["Llama 3 · Mistral\nQwen · Phi · Gemma\nAny OpenAI-compat model"]
+    subgraph LM["🖥️ OpenAI Compatible API (Local)"]
+        L1["LM Studio · Ollama · llama.cpp\nQwen · Mistral · Llama · Phi\nAny OpenAI-compat model"]
     end
 
-    subgraph OA["🔗 OpenAI-Compatible"]
+    subgraph OA["🔗 OpenAI-Compatible (Remote)"]
         O1["Any server exposing\n/v1/chat/completions"]
     end
 
@@ -184,11 +195,10 @@ flowchart LR
     style OA fill:#1a1a2e,color:#e2e8f0,stroke:#3178c6,stroke-width:1px
 ```
 
-| Provider          | Setup            | Privacy    | Models                       | Best For                 |
-| ----------------- | ---------------- | ---------- | ---------------------------- | ------------------------ |
-| **Anthropic**     | API key          | Cloud      | Claude Sonnet / Opus / Haiku | Best reasoning quality   |
-| **LM Studio**     | `localhost:1234` | 100% local | Any GGUF model               | Offline / private vaults |
-| **OpenAI-compat** | Custom endpoint  | Depends    | Provider-specific            | Custom deployments       |
+| Provider                   | Setup            | Privacy    | Models                           | Best For                 |
+| -------------------------- | ---------------- | ---------- | -------------------------------- | ------------------------ |
+| **Anthropic**              | API key          | Cloud      | Claude Sonnet / Opus / Haiku     | Best reasoning quality   |
+| **OpenAI compatible API**  | `localhost:1234` | 100% local | LM Studio · Ollama · llama.cpp   | Offline / private vaults |
 
 ---
 
