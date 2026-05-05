@@ -70,7 +70,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
       .setDesc("LLM provider to use")
       .addDropdown((drop) => {
         drop.addOption("anthropic", "Anthropic (Claude)");
-        drop.addOption("lmstudio", "Lm studio (local)");
+        drop.addOption("lmstudio", "OpenAI compatible API (local)");
         drop.setValue(this.plugin.settings.provider);
         drop.onChange(async (value) => {
           this.plugin.settings.provider = value as "anthropic" | "lmstudio";
@@ -114,11 +114,11 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
     // --- LM Studio section ---
     if (this.plugin.settings.provider === "lmstudio") {
-      new Setting(containerEl).setName("Lm studio").setHeading();
+      new Setting(containerEl).setName("OpenAI compatible API").setHeading();
 
       new Setting(containerEl)
         .setName("Base URL")
-        .setDesc("Lm studio local server URL")
+        .setDesc("Local server URL (e.g. HTTP://localhost:1234/v1)")
         .addText((text) => {
           text
             .setPlaceholder("Server URL")
@@ -131,7 +131,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Model name")
-        .setDesc("The model identifier shown in lm studio (leave empty to use the loaded model)")
+        .setDesc("Model identifier (leave empty to use the loaded model)")
         .addText((text) => {
           text
             .setPlaceholder("Leave empty to use loaded model")
@@ -160,7 +160,7 @@ export class AIAgentSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Test connection")
-        .setDesc("Check that lm studio is running and reachable")
+        .setDesc("Check that the local server is running and reachable")
         .addButton((btn) => {
           btn.setButtonText("Test").onClick(async () => {
             btn.setButtonText("Testing...").setDisabled(true);
@@ -172,9 +172,9 @@ export class AIAgentSettingTab extends PluginSettingTab {
               if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
               const data = res.json as { data: Array<{ id: string }> };
               const models = data.data.map((m) => m.id).join(", ");
-              new Notice(`LM Studio connected. Models: ${models || "(none loaded)"}`);
+              new Notice(`Connected. Models: ${models || "(none loaded)"}`);
             } catch (e) {
-              new Notice(`Cannot reach LM Studio: ${(e as Error).message}`);
+              new Notice(`Cannot reach server: ${(e as Error).message}`);
             } finally {
               btn.setButtonText("Test").setDisabled(false);
             }

@@ -1,4 +1,4 @@
-import { requestUrl } from "obsidian";
+import { requestUrl, loadPdfJs } from "obsidian";
 import type {
   LLMProvider,
   Message,
@@ -85,6 +85,24 @@ function parseXmlToolCalls(text: string): OAIToolCall[] {
   return results;
 }
 
+async function extractPdfText(base64: string): Promise<string> {
+  const pdfjs = await loadPdfJs();
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise as {
+    numPages: number;
+    getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str: string }> }> }>;
+  };
+  const parts: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    parts.push(content.items.map((it) => it.str).join(" "));
+  }
+  return parts.join("\n\n");
+}
+
 export class OpenAICompatibleProvider implements LLMProvider {
   constructor(
     private baseUrl: string,
@@ -101,14 +119,40 @@ export class OpenAICompatibleProvider implements LLMProvider {
     return false;
   }
 
+  private async preprocessMessages(messages: Message[]): Promise<Message[]> {
+    const result: Message[] = [];
+    for (const msg of messages) {
+      if (typeof msg.content === "string") {
+        result.push(msg);
+        continue;
+      }
+      const newBlocks: ContentBlock[] = [];
+      for (const block of msg.content) {
+        if (block.type === "document") {
+          try {
+            const text = await extractPdfText(block.source.data);
+            newBlocks.push({ type: "text", text: `[PDF içeriği]\n${text}` });
+          } catch {
+            newBlocks.push({ type: "text", text: "[PDF okunamadı]" });
+          }
+        } else {
+          newBlocks.push(block);
+        }
+      }
+      result.push({ role: msg.role, content: newBlocks });
+    }
+    return result;
+  }
+
   async chat(
     messages: Message[],
     tools: Tool[],
     systemPrompt: string,
   ): Promise<LLMResponse> {
+    const processed = await this.preprocessMessages(messages);
     const oaiMessages: OAIMessage[] = [
       { role: "system", content: systemPrompt },
-      ...this.convertMessages(messages),
+      ...this.convertMessages(processed),
     ];
 
     const body: Record<string, unknown> = {
@@ -265,13 +309,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
           });
         }
 
-        // Add PDF/document blocks as text description (most local models don't support PDFs)
-        for (const doc of docBlocks) {
-          parts.push({
-            type: "text",
-            text: `[PDF document attached — base64 length: ${doc.source.data.length} chars. Please note: this provider may not support PDF parsing natively.]`,
-          });
-        }
+        // docBlocks are already converted to text by preprocessMessages; nothing to do here
 
         // Add text blocks
         for (const tb of textBlocks) {

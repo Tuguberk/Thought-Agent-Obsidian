@@ -26,7 +26,7 @@ export async function openChangedFile(app: App, path: string): Promise<void> {
       await leaf.openFile(file)
     }
   } else {
-    await app.workspace.openLinkText(path, '', false)
+    await app.workspace.openLinkText(path, '', 'tab')
   }
 }
 

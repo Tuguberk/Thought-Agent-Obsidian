@@ -50,16 +50,23 @@ export class AgentLoop {
     history: Message[],
     session: SessionContext,
     callbacks: AgentCallbacks = {},
+    attachments: ContentBlock[] = [],
   ): Promise<string> {
     let initialUserContent: string | ContentBlock[] = userMessage;
-    if (session.activeFile?.isDiagram && this.excalidraw) {
-      const png = await this.excalidraw.exportToPNG(session.activeFile.path);
-      if (png) {
-        initialUserContent = [
-          { type: "text", text: userMessage },
-          { type: "image", source: { type: "base64", media_type: "image/png", data: png } },
-        ];
-      }
+    const diagramPng =
+      session.activeFile?.isDiagram && this.excalidraw
+        ? await this.excalidraw.exportToPNG(session.activeFile.path)
+        : null;
+
+    if (attachments.length > 0 || diagramPng) {
+      const blocks: ContentBlock[] = [{ type: "text", text: userMessage }];
+      if (attachments.length > 0) blocks.push(...attachments);
+      if (diagramPng)
+        blocks.push({
+          type: "image",
+          source: { type: "base64", media_type: "image/png", data: diagramPng },
+        });
+      initialUserContent = blocks;
     }
 
     const messages: Message[] = [

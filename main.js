@@ -65,7 +65,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("Provider").setHeading();
     new import_obsidian.Setting(containerEl).setName("Provider").setDesc("LLM provider to use").addDropdown((drop) => {
       drop.addOption("anthropic", "Anthropic (Claude)");
-      drop.addOption("lmstudio", "Lm studio (local)");
+      drop.addOption("lmstudio", "OpenAI compatible API (local)");
       drop.setValue(this.plugin.settings.provider);
       drop.onChange(async (value) => {
         this.plugin.settings.provider = value;
@@ -94,14 +94,14 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     }
     if (this.plugin.settings.provider === "lmstudio") {
-      new import_obsidian.Setting(containerEl).setName("Lm studio").setHeading();
-      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc("Lm studio local server URL").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("OpenAI compatible API").setHeading();
+      new import_obsidian.Setting(containerEl).setName("Base URL").setDesc("Local server URL (e.g. HTTP://localhost:1234/v1)").addText((text) => {
         text.setPlaceholder("Server URL").setValue(this.plugin.settings.lmstudioBaseUrl).onChange(async (value) => {
           this.plugin.settings.lmstudioBaseUrl = value.replace(/\/$/, "");
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Model name").setDesc("The model identifier shown in lm studio (leave empty to use the loaded model)").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Model name").setDesc("Model identifier (leave empty to use the loaded model)").addText((text) => {
         text.setPlaceholder("Leave empty to use loaded model").setValue(this.plugin.settings.lmstudioModel).onChange(async (value) => {
           this.plugin.settings.lmstudioModel = value;
           await this.plugin.saveSettings();
@@ -116,7 +116,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
           }
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Test connection").setDesc("Check that lm studio is running and reachable").addButton((btn) => {
+      new import_obsidian.Setting(containerEl).setName("Test connection").setDesc("Check that the local server is running and reachable").addButton((btn) => {
         btn.setButtonText("Test").onClick(async () => {
           btn.setButtonText("Testing...").setDisabled(true);
           try {
@@ -127,9 +127,9 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
             if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
             const data = res.json;
             const models = data.data.map((m) => m.id).join(", ");
-            new import_obsidian.Notice(`LM Studio connected. Models: ${models || "(none loaded)"}`);
+            new import_obsidian.Notice(`Connected. Models: ${models || "(none loaded)"}`);
           } catch (e) {
-            new import_obsidian.Notice(`Cannot reach LM Studio: ${e.message}`);
+            new import_obsidian.Notice(`Cannot reach server: ${e.message}`);
           } finally {
             btn.setButtonText("Test").setDisabled(false);
           }
@@ -378,6 +378,9 @@ var ChatView = class extends import_obsidian2.ItemView {
   runMode = "agent";
   disposeModelContextListener = null;
   disposeOutsideMenuListener = null;
+  attachments = [];
+  attachmentsEl;
+  fileInputEl;
   abortController = null;
   stopped = false;
   constructor(leaf, plugin) {
@@ -486,6 +489,18 @@ var ChatView = class extends import_obsidian2.ItemView {
     (0, import_obsidian2.setIcon)(newChatBtn, "square-pen");
     newChatBtn.onclick = () => this.newChat();
     this.messagesEl = container.createDiv("ai-chat-messages");
+    this.messagesEl.addEventListener("click", (e) => {
+      const target = e.target;
+      const link = target.closest("a");
+      if (!link) return;
+      const href = link.getAttribute("data-href") ?? link.getAttribute("href");
+      if (!href) return;
+      const isInternal = link.classList.contains("internal-link") || !href.startsWith("http://") && !href.startsWith("https://") && !href.startsWith("mailto:");
+      if (isInternal) {
+        e.preventDefault();
+        void this.app.workspace.openLinkText(href, "", false);
+      }
+    });
     const inputArea = container.createDiv("ai-chat-input-area");
     const composer = inputArea.createDiv("ai-chat-composer");
     this.sessionBadgeEl = composer.createDiv("ai-composer-context");
@@ -501,13 +516,25 @@ var ChatView = class extends import_obsidian2.ItemView {
         else void this.sendMessage();
       }
     });
+    this.attachmentsEl = composer.createDiv("ai-attachments");
+    this.attachmentsEl.hide();
+    this.fileInputEl = composer.createEl("input", {
+      attr: {
+        type: "file",
+        accept: "image/jpeg,image/png,image/gif,image/webp,application/pdf",
+        multiple: "true"
+      },
+      cls: "ai-file-input-hidden"
+    });
+    this.fileInputEl.addEventListener("change", () => void this.handleFileSelection());
     const controls = composer.createDiv("ai-composer-controls");
     const left = controls.createDiv("ai-composer-left");
-    left.createEl("button", {
+    const addBtn = left.createEl("button", {
       text: "+",
       cls: "ai-composer-icon-btn",
-      attr: { "aria-label": "Add context" }
+      attr: { "aria-label": "Add file" }
     });
+    addBtn.onclick = () => this.fileInputEl.click();
     const modeWrap = left.createDiv("ai-menu-wrap");
     this.modeMenuBtn = modeWrap.createEl("button", {
       text: "Agent \u25BE",
@@ -536,7 +563,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     this.modeMenuBtn.onclick = () => this.toggleMenu(this.modeMenuEl);
     this.modeAgentItem.onclick = () => this.setRunMode("agent");
     this.modePlannerItem.onclick = () => this.setRunMode("planner");
-    const modelWrap = left.createDiv("ai-menu-wrap");
+    const modelWrap = left.createDiv("ai-menu-wrap ai-model-wrap");
     this.modelMenuBtn = modelWrap.createEl("button", {
       text: `${this.plugin.getActiveModel()} \u25BE`,
       cls: "ai-menu-trigger ai-model-trigger",
@@ -673,10 +700,12 @@ var ChatView = class extends import_obsidian2.ItemView {
       return;
     }
     this.inputEl.value = "";
+    const pendingAttachments = this.attachments.splice(0);
+    this.renderAttachmentChips();
     this.stopped = false;
     this.abortController = new AbortController();
     this.setRunning(true);
-    this.addUserBubble(text);
+    this.addUserBubble(text, pendingAttachments);
     const bubble = this.messagesEl.createDiv("ai-bubble ai-bubble-assistant");
     let currentTextEl = null;
     let currentRawText = "";
@@ -827,7 +856,8 @@ var ChatView = class extends import_obsidian2.ItemView {
             if (!this.stopped)
               void this.plugin.openGraphView(filter);
           }
-        }
+        },
+        pendingAttachments.map((a) => a.block)
       );
       if (!this.stopped) {
         const hasVisibleText = Array.from(
@@ -859,8 +889,21 @@ var ChatView = class extends import_obsidian2.ItemView {
       this.inputEl.focus();
     }
   }
-  addUserBubble(text) {
+  addUserBubble(text, attachments = []) {
     const bubble = this.messagesEl.createDiv("ai-bubble ai-bubble-user");
+    if (attachments.length > 0) {
+      const attRow = bubble.createDiv("ai-bubble-attachments");
+      for (const att of attachments) {
+        const chip = attRow.createDiv("ai-bubble-attachment-chip");
+        if (att.block.type === "image") {
+          const img = chip.createEl("img", { cls: "ai-bubble-attachment-thumb" });
+          img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
+        } else {
+          chip.createEl("span", { text: "\u{1F4C4}", cls: "ai-attachment-icon" });
+          chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+        }
+      }
+    }
     bubble.createDiv({ cls: "ai-bubble-text", text });
     this.scrollToBottom();
   }
@@ -883,6 +926,61 @@ var ChatView = class extends import_obsidian2.ItemView {
   scrollToBottom() {
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
   }
+  async handleFileSelection() {
+    const files = Array.from(this.fileInputEl.files ?? []);
+    this.fileInputEl.value = "";
+    for (const file of files) {
+      const block = await this.fileToContentBlock(file);
+      if (block) this.attachments.push({ block, name: file.name });
+    }
+    this.renderAttachmentChips();
+  }
+  fileToContentBlock(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(",")[1];
+        if (file.type === "application/pdf") {
+          resolve({
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: base64 }
+          });
+        } else if (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/gif" || file.type === "image/webp") {
+          resolve({
+            type: "image",
+            source: { type: "base64", media_type: file.type, data: base64 }
+          });
+        } else {
+          resolve(null);
+        }
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+  renderAttachmentChips() {
+    this.attachmentsEl.empty();
+    if (this.attachments.length === 0) {
+      this.attachmentsEl.hide();
+      return;
+    }
+    this.attachmentsEl.show();
+    this.attachments.forEach((att, idx) => {
+      const chip = this.attachmentsEl.createDiv("ai-attachment-chip");
+      if (att.block.type === "image") {
+        const img = chip.createEl("img", { cls: "ai-attachment-thumb" });
+        img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
+      } else {
+        chip.createEl("span", { text: "\u{1F4C4}", cls: "ai-attachment-icon" });
+      }
+      chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+      const rm = chip.createEl("button", { text: "\xD7", cls: "ai-attachment-remove" });
+      rm.onclick = () => {
+        this.attachments.splice(idx, 1);
+        this.renderAttachmentChips();
+      };
+    });
+  }
 };
 
 // src/views/PreviewView.ts
@@ -899,7 +997,7 @@ async function openChangedFile(app, path) {
       await leaf.openFile(file);
     }
   } else {
-    await app.workspace.openLinkText(path, "", false);
+    await app.workspace.openLinkText(path, "", "tab");
   }
 }
 function getChangePrimaryPath(change) {
@@ -4114,6 +4212,20 @@ function parseXmlToolCalls(text) {
   }
   return results;
 }
+async function extractPdfText(base64) {
+  const pdfjs = await (0, import_obsidian6.loadPdfJs)();
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+  const parts = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    parts.push(content.items.map((it) => it.str).join(" "));
+  }
+  return parts.join("\n\n");
+}
 var OpenAICompatibleProvider = class {
   constructor(baseUrl, model, apiKey = "lm-studio", maxTokens = 16384) {
     this.baseUrl = baseUrl;
@@ -4127,10 +4239,36 @@ var OpenAICompatibleProvider = class {
   supportsMultimodalToolResults() {
     return false;
   }
+  async preprocessMessages(messages) {
+    const result = [];
+    for (const msg of messages) {
+      if (typeof msg.content === "string") {
+        result.push(msg);
+        continue;
+      }
+      const newBlocks = [];
+      for (const block of msg.content) {
+        if (block.type === "document") {
+          try {
+            const text = await extractPdfText(block.source.data);
+            newBlocks.push({ type: "text", text: `[PDF i\xE7eri\u011Fi]
+${text}` });
+          } catch {
+            newBlocks.push({ type: "text", text: "[PDF okunamad\u0131]" });
+          }
+        } else {
+          newBlocks.push(block);
+        }
+      }
+      result.push({ role: msg.role, content: newBlocks });
+    }
+    return result;
+  }
   async chat(messages, tools, systemPrompt) {
+    const processed = await this.preprocessMessages(messages);
     const oaiMessages = [
       { role: "system", content: systemPrompt },
-      ...this.convertMessages(messages)
+      ...this.convertMessages(processed)
     ];
     const body = {
       model: this.model,
@@ -4250,12 +4388,6 @@ var OpenAICompatibleProvider = class {
               url: `data:${img.source.media_type};base64,${img.source.data}`,
               detail: "auto"
             }
-          });
-        }
-        for (const doc of docBlocks) {
-          parts.push({
-            type: "text",
-            text: `[PDF document attached \u2014 base64 length: ${doc.source.data.length} chars. Please note: this provider may not support PDF parsing natively.]`
           });
         }
         for (const tb of textBlocks) {
@@ -4764,16 +4896,18 @@ var AgentLoop = class {
     this.tools = getTools(excalidrawAvailable);
     this.excalidraw = excalidraw;
   }
-  async run(userMessage, history, session, callbacks = {}) {
+  async run(userMessage, history, session, callbacks = {}, attachments = []) {
     let initialUserContent = userMessage;
-    if (session.activeFile?.isDiagram && this.excalidraw) {
-      const png = await this.excalidraw.exportToPNG(session.activeFile.path);
-      if (png) {
-        initialUserContent = [
-          { type: "text", text: userMessage },
-          { type: "image", source: { type: "base64", media_type: "image/png", data: png } }
-        ];
-      }
+    const diagramPng = session.activeFile?.isDiagram && this.excalidraw ? await this.excalidraw.exportToPNG(session.activeFile.path) : null;
+    if (attachments.length > 0 || diagramPng) {
+      const blocks = [{ type: "text", text: userMessage }];
+      if (attachments.length > 0) blocks.push(...attachments);
+      if (diagramPng)
+        blocks.push({
+          type: "image",
+          source: { type: "base64", media_type: "image/png", data: diagramPng }
+        });
+      initialUserContent = blocks;
     }
     const messages = [
       ...history,
@@ -6334,7 +6468,9 @@ var ToolExecutor = class {
     const title = input.title;
     const content = input.content;
     const folder = input.folder ?? "";
-    const tags = input.tags ?? [];
+    const tags = (input.tags ?? []).map(
+      (t) => t.replace(/\s+/g, "-")
+    );
     const linksTo = input.linksTo ?? [];
     let frontmatter = "";
     if (tags.length > 0) {
@@ -6349,7 +6485,8 @@ tags: [${tags.join(", ")}]
       linkSection = "\n\n## Related\n" + linksTo.map((l) => `- [[${l.replace(/\.md$/, "")}]]`).join("\n");
     }
     const fullContent = frontmatter + content + linkSection;
-    const path = folder ? `${folder.replace(/\/$/, "")}/${title}.md` : `${title}.md`;
+    const safeTitle = title.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim();
+    const path = folder ? `${folder.replace(/\/$/, "")}/${safeTitle}.md` : `${safeTitle}.md`;
     const change = {
       kind: "create",
       note: { path, content: fullContent, tags }
@@ -7365,7 +7502,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
       return null;
     }
   }
-  async setTargetViewForFile(ea, filePath) {
+  setTargetViewForFile(ea, filePath) {
     const leaves = this.app.workspace.getLeavesOfType("excalidraw");
     const leaf = leaves.find((l) => {
       const viewFile = l.view.file;
@@ -7379,7 +7516,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
     const file = this.app.vault.getAbstractFileByPath(filePath);
     if (!(file instanceof import_obsidian11.TFile)) return null;
     try {
-      await this.setTargetViewForFile(ea, filePath);
+      this.setTargetViewForFile(ea, filePath);
       ea.reset();
       try {
         await ea.loadFile(file);
@@ -7397,7 +7534,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
     const file = this.app.vault.getAbstractFileByPath(filePath);
     if (!(file instanceof import_obsidian11.TFile)) return null;
     const scales = [1, 0.8, 0.5];
-    await this.setTargetViewForFile(ea, filePath);
+    this.setTargetViewForFile(ea, filePath);
     for (const scale of scales) {
       const png = await this.toBase64FromPngResult(await ea.createPNG(void 0, scale));
       if (png && this.byteLengthFromBase64(png) > 512) return png;
@@ -7412,7 +7549,7 @@ var ExcalidrawAdapter = class _ExcalidrawAdapter {
         } catch {
           await ea.loadFile(file.path);
         }
-        await this.setTargetViewForFile(ea, filePath);
+        this.setTargetViewForFile(ea, filePath);
         for (const scale of scales) {
           const png = await this.toBase64FromPngResult(await ea.createPNG(void 0, scale));
           if (png && this.byteLengthFromBase64(png) > 512) return png;

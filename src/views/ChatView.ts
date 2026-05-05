@@ -5,7 +5,7 @@ import {
   MarkdownRenderer,
   setIcon,
 } from "obsidian";
-import type { Message } from "../providers/LLMProvider";
+import type { Message, ContentBlock } from "../providers/LLMProvider";
 import type { AgentLoop } from "../agent/AgentLoop";
 import type { SessionContext } from "../agent/SessionContext";
 import {
@@ -34,6 +34,10 @@ export class ChatView extends ItemView {
   private runMode: "agent" | "planner" = "agent";
   private disposeModelContextListener: (() => void) | null = null;
   private disposeOutsideMenuListener: (() => void) | null = null;
+
+  private attachments: Array<{ block: ContentBlock; name: string }> = [];
+  private attachmentsEl!: HTMLElement;
+  private fileInputEl!: HTMLInputElement;
 
   private abortController: AbortController | null = null;
   private stopped = false;
@@ -157,6 +161,20 @@ export class ChatView extends ItemView {
     newChatBtn.onclick = () => this.newChat();
 
     this.messagesEl = container.createDiv("ai-chat-messages");
+    this.messagesEl.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest("a");
+      if (!link) return;
+      const href = link.getAttribute("data-href") ?? link.getAttribute("href");
+      if (!href) return;
+      const isInternal =
+        link.classList.contains("internal-link") ||
+        (!href.startsWith("http://") && !href.startsWith("https://") && !href.startsWith("mailto:"));
+      if (isInternal) {
+        e.preventDefault();
+        void this.app.workspace.openLinkText(href, "", false);
+      }
+    });
 
     const inputArea = container.createDiv("ai-chat-input-area");
     const composer = inputArea.createDiv("ai-chat-composer");
@@ -176,13 +194,27 @@ export class ChatView extends ItemView {
       }
     });
 
+    this.attachmentsEl = composer.createDiv("ai-attachments");
+    this.attachmentsEl.hide();
+
+    this.fileInputEl = composer.createEl("input", {
+      attr: {
+        type: "file",
+        accept: "image/jpeg,image/png,image/gif,image/webp,application/pdf",
+        multiple: "true",
+      },
+      cls: "ai-file-input-hidden",
+    });
+    this.fileInputEl.addEventListener("change", () => void this.handleFileSelection());
+
     const controls = composer.createDiv("ai-composer-controls");
     const left = controls.createDiv("ai-composer-left");
-    left.createEl("button", {
+    const addBtn = left.createEl("button", {
       text: "+",
       cls: "ai-composer-icon-btn",
-      attr: { "aria-label": "Add context" },
+      attr: { "aria-label": "Add file" },
     });
+    addBtn.onclick = () => this.fileInputEl.click();
 
     const modeWrap = left.createDiv("ai-menu-wrap");
     this.modeMenuBtn = modeWrap.createEl("button", {
@@ -213,7 +245,7 @@ export class ChatView extends ItemView {
     this.modeAgentItem.onclick = () => this.setRunMode("agent");
     this.modePlannerItem.onclick = () => this.setRunMode("planner");
 
-    const modelWrap = left.createDiv("ai-menu-wrap");
+    const modelWrap = left.createDiv("ai-menu-wrap ai-model-wrap");
     this.modelMenuBtn = modelWrap.createEl("button", {
       text: `${this.plugin.getActiveModel()} ▾`,
       cls: "ai-menu-trigger ai-model-trigger",
@@ -369,11 +401,13 @@ export class ChatView extends ItemView {
     }
 
     this.inputEl.value = "";
+    const pendingAttachments = this.attachments.splice(0);
+    this.renderAttachmentChips();
     this.stopped = false;
     this.abortController = new AbortController();
     this.setRunning(true);
 
-    this.addUserBubble(text);
+    this.addUserBubble(text, pendingAttachments);
     const bubble = this.messagesEl.createDiv("ai-bubble ai-bubble-assistant");
 
     // State for chronological rendering
@@ -576,6 +610,7 @@ export class ChatView extends ItemView {
               void this.plugin.openGraphView(filter);
           },
         },
+        pendingAttachments.map((a) => a.block),
       );
 
       if (!this.stopped) {
@@ -621,8 +656,24 @@ export class ChatView extends ItemView {
     }
   }
 
-  private addUserBubble(text: string): void {
+  private addUserBubble(
+    text: string,
+    attachments: Array<{ block: ContentBlock; name: string }> = [],
+  ): void {
     const bubble = this.messagesEl.createDiv("ai-bubble ai-bubble-user");
+    if (attachments.length > 0) {
+      const attRow = bubble.createDiv("ai-bubble-attachments");
+      for (const att of attachments) {
+        const chip = attRow.createDiv("ai-bubble-attachment-chip");
+        if (att.block.type === "image") {
+          const img = chip.createEl("img", { cls: "ai-bubble-attachment-thumb" });
+          img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
+        } else {
+          chip.createEl("span", { text: "📄", cls: "ai-attachment-icon" });
+          chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+        }
+      }
+    }
     bubble.createDiv({ cls: "ai-bubble-text", text });
     this.scrollToBottom();
   }
@@ -646,5 +697,68 @@ export class ChatView extends ItemView {
 
   private scrollToBottom(): void {
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  private async handleFileSelection(): Promise<void> {
+    const files = Array.from(this.fileInputEl.files ?? []);
+    this.fileInputEl.value = "";
+    for (const file of files) {
+      const block = await this.fileToContentBlock(file);
+      if (block) this.attachments.push({ block, name: file.name });
+    }
+    this.renderAttachmentChips();
+  }
+
+  private fileToContentBlock(file: File): Promise<ContentBlock | null> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        if (file.type === "application/pdf") {
+          resolve({
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: base64 },
+          });
+        } else if (
+          file.type === "image/jpeg" ||
+          file.type === "image/png" ||
+          file.type === "image/gif" ||
+          file.type === "image/webp"
+        ) {
+          resolve({
+            type: "image",
+            source: { type: "base64", media_type: file.type, data: base64 },
+          });
+        } else {
+          resolve(null);
+        }
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private renderAttachmentChips(): void {
+    this.attachmentsEl.empty();
+    if (this.attachments.length === 0) {
+      this.attachmentsEl.hide();
+      return;
+    }
+    this.attachmentsEl.show();
+    this.attachments.forEach((att, idx) => {
+      const chip = this.attachmentsEl.createDiv("ai-attachment-chip");
+      if (att.block.type === "image") {
+        const img = chip.createEl("img", { cls: "ai-attachment-thumb" });
+        img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
+      } else {
+        chip.createEl("span", { text: "📄", cls: "ai-attachment-icon" });
+      }
+      chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+      const rm = chip.createEl("button", { text: "×", cls: "ai-attachment-remove" });
+      rm.onclick = () => {
+        this.attachments.splice(idx, 1);
+        this.renderAttachmentChips();
+      };
+    });
   }
 }

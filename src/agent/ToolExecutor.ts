@@ -476,7 +476,9 @@ export class ToolExecutor {
     const title = input.title as string;
     const content = input.content as string;
     const folder = (input.folder as string | undefined) ?? "";
-    const tags = (input.tags as string[] | undefined) ?? [];
+    const tags = ((input.tags as string[] | undefined) ?? []).map((t) =>
+      t.replace(/\s+/g, "-"),
+    );
     const linksTo = (input.linksTo as string[] | undefined) ?? [];
 
     let frontmatter = "";
@@ -492,9 +494,10 @@ export class ToolExecutor {
     }
 
     const fullContent = frontmatter + content + linkSection;
+    const safeTitle = title.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim();
     const path = folder
-      ? `${folder.replace(/\/$/, "")}/${title}.md`
-      : `${title}.md`;
+      ? `${folder.replace(/\/$/, "")}/${safeTitle}.md`
+      : `${safeTitle}.md`;
 
     const change: PendingChange = {
       kind: "create",
