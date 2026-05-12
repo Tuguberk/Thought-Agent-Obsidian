@@ -10,6 +10,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0-7c3aed?style=flat-square)](./manifest.json)
 [![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://obsidian.md)
+[![Community Plugin](https://img.shields.io/badge/Community%20Plugin-available-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://community.obsidian.md/plugins/thought-agent)
 [![License](https://img.shields.io/badge/license-MIT-7c3aed?style=flat-square)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -28,11 +29,23 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 
 ## 📦 Installation
 
-### Option 1, BRAT (recommended for early adopters)
+### Option 1, Obsidian Community Plugins (recommended)
 
-[BRAT](https://github.com/TfTHacker/obsidian42-brat) lets you install plugins directly from GitHub without waiting for the official Obsidian store.
+1. Open Obsidian → **Settings → Community Plugins → Browse**.
+2. Search for **"Thought Agent"**.
+3. Click **Install**, then **Enable**.
 
-1. Install **Obsidian42 - BRAT** from the Obsidian Community Plugins store.
+That's it — no BRAT, no manual file copying.
+
+> You can also open the plugin page directly: [community.obsidian.md/plugins/thought-agent](https://community.obsidian.md/plugins/thought-agent)
+
+---
+
+### Option 2, BRAT
+
+[BRAT](https://github.com/TfTHacker/obsidian42-brat) lets you install plugins directly from GitHub and get pre-release updates.
+
+1. Install **Obsidian42 - BRAT** from the Community Plugins store.
 2. Open Obsidian → **Settings → BRAT → Add Beta Plugin**.
 3. Paste the repository URL:
    ```
@@ -43,7 +56,7 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 
 ---
 
-### Option 2, Manual installation
+### Option 3, Manual installation
 
 1. Go to the [**Releases**](https://github.com/Tuguberk/Thought-Agent-Obsidian/releases) page and download the latest:
    - `main.js`
@@ -58,7 +71,7 @@ Thought Agent is not a chatbot bolted onto your notes. It is an **autonomous rea
 
 ---
 
-### Option 3, Build from source
+### Option 4, Build from source
 
 ```bash
 # Clone into your vault's plugins folder
