@@ -8,7 +8,7 @@
 
 ![Demo](github_assets/screenshots/demo1.gif)
 
-[![Version](https://img.shields.io/badge/version-1.0.0-7c3aed?style=flat-square)](./manifest.json)
+[![Version](https://img.shields.io/badge/version-1.1.0-7c3aed?style=flat-square)](./manifest.json)
 [![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://obsidian.md)
 [![Community Plugin](https://img.shields.io/badge/Community%20Plugin-available-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://community.obsidian.md/plugins/thought-agent)
 [![License](https://img.shields.io/badge/license-MIT-7c3aed?style=flat-square)](./LICENSE)
@@ -99,6 +99,13 @@ Open **Obsidian → Settings → Thought Agent** and pick your LLM provider:
 - Paste your [Anthropic API key](https://console.anthropic.com/) (`sk-ant-...`)
 - Select a model, **Claude Sonnet 4.6** is recommended for the best balance of speed and power
 
+**Using OpenRouter (hundreds of models, one key):**
+
+- Set **Provider** → `OpenRouter`
+- Paste your [OpenRouter API key](https://openrouter.ai/keys) (`sk-or-...`)
+- Enter a model slug such as `anthropic/claude-3.7-sonnet`, `deepseek/deepseek-v4-pro`, or `openai/gpt-4o-mini`, browse the full catalog at [openrouter.ai/models](https://openrouter.ai/models)
+- Hit **Test** to verify the key and model, then switch models any time from the chat header
+
 **Using a local model (OpenAI compatible API):**
 
 - Start any OpenAI-compatible local server (e.g. [LM Studio](https://lmstudio.ai), [Ollama](https://ollama.com), llama.cpp)
@@ -112,6 +119,8 @@ Open **Obsidian → Settings → Thought Agent** and pick your LLM provider:
 
 In **Settings → Thought Agent**, click **Re-index vault**.  
 This builds the local semantic index (~25 MB model download on first run). You only need to do this once, and again after adding many new notes.
+
+> **Embedding provider:** The default embedder is a bundled local model (desktop only). On mobile — or to offload embedding to the cloud — open **Settings → Thought Agent → Embeddings** and choose **OpenAI**, **Google**, or **OpenRouter**, then paste the matching API key. Changing the embedding provider requires re-indexing the vault.
 
 ---
 
@@ -185,6 +194,7 @@ Thought Agent is **provider-agnostic**. Choose the model that fits your workflow
 ```mermaid
 flowchart LR
     TA["🧠 Thought Agent\nProvider Layer"] --> AN
+    TA --> OR
     TA --> LM
     TA --> OA
 
@@ -192,6 +202,10 @@ flowchart LR
         C1["Claude Sonnet 4.6\n✦ Recommended"]
         C2["Claude Opus 4.7\n✦ Most powerful"]
         C3["Claude Haiku 4.5\n✦ Fastest"]
+    end
+
+    subgraph OR["🔗 OpenRouter (Cloud Gateway)"]
+        R1["One key → 100s of models\nClaude · GPT · Llama · DeepSeek\nChat + embeddings"]
     end
 
     subgraph LM["🖥️ OpenAI Compatible API (Local)"]
@@ -204,14 +218,18 @@ flowchart LR
 
     style TA fill:#7c3aed,color:#fff,stroke:none
     style AN fill:#1a1a2e,color:#e2e8f0,stroke:#7c3aed,stroke-width:1px
+    style OR fill:#1a1a2e,color:#e2e8f0,stroke:#f59e0b,stroke-width:1px
     style LM fill:#1a1a2e,color:#e2e8f0,stroke:#059669,stroke-width:1px
     style OA fill:#1a1a2e,color:#e2e8f0,stroke:#3178c6,stroke-width:1px
 ```
 
-| Provider                   | Setup            | Privacy    | Models                           | Best For                 |
-| -------------------------- | ---------------- | ---------- | -------------------------------- | ------------------------ |
-| **Anthropic**              | API key          | Cloud      | Claude Sonnet / Opus / Haiku     | Best reasoning quality   |
-| **OpenAI compatible API**  | `localhost:1234` | 100% local | LM Studio · Ollama · llama.cpp   | Offline / private vaults |
+| Provider                  | Setup            | Privacy    | Models                                 | Best For                     |
+| ------------------------- | ---------------- | ---------- | -------------------------------------- | ---------------------------- |
+| **Anthropic**             | API key          | Cloud      | Claude Sonnet / Opus / Haiku           | Best reasoning quality       |
+| **OpenRouter**            | API key          | Cloud      | 100s (Claude · GPT · Llama · DeepSeek) | Widest model choice, one key |
+| **OpenAI compatible API** | `localhost:1234` | 100% local | LM Studio · Ollama · llama.cpp         | Offline / private vaults     |
+
+> OpenRouter also powers **cloud embeddings** — select it under **Settings → Thought Agent → Embeddings** to use models like `openai/text-embedding-3-small` for semantic search (handy on mobile, where the local embedder isn't available).
 
 ---
 
