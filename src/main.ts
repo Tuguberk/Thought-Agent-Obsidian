@@ -10,6 +10,7 @@ import { GraphQueryView, GRAPH_VIEW_TYPE } from "./views/GraphQueryView";
 import { AnthropicProvider } from "./providers/AnthropicProvider";
 import { OpenAICompatibleProvider } from "./providers/OpenAICompatibleProvider";
 import type { LLMProvider } from "./providers/LLMProvider";
+import { OPENROUTER_BASE_URL, openRouterHeaders } from "./openrouter";
 import { AgentLoop } from "./agent/AgentLoop";
 import { ToolExecutor } from "./agent/ToolExecutor";
 import { VectorStore } from "./retrieval/VectorStore";
@@ -146,7 +147,11 @@ export default class AIAgentPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()) as AIAgentSettings;
+    this.settings = Object.assign(
+      {},
+      DEFAULT_SETTINGS,
+      await this.loadData(),
+    ) as AIAgentSettings;
     this.chatModelContextFingerprint = this.getChatModelContextFingerprint();
   }
 
@@ -167,6 +172,8 @@ export default class AIAgentPlugin extends Plugin {
       model: this.settings.model,
       lmstudioBaseUrl: this.settings.lmstudioBaseUrl,
       lmstudioModel: this.settings.lmstudioModel,
+      openrouterApiKey: this.settings.openrouterApiKey,
+      openrouterModel: this.settings.openrouterModel,
     });
   }
 
@@ -211,19 +218,19 @@ export default class AIAgentPlugin extends Plugin {
 
     this.statusBarItem.show();
 
-    const label = this.statusBarItem.createEl("span", {
+    const label = this.statusBarItem.createSpan({
       text: `${count} pending`,
       cls: "ai-statusbar-count",
     });
     label.onclick = () => this.revealFirstPending();
 
-    const approveBtn = this.statusBarItem.createEl("span", {
+    const approveBtn = this.statusBarItem.createSpan({
       text: "Approve all",
       cls: "ai-statusbar-btn ai-statusbar-approve",
     });
     approveBtn.onclick = () => this.approveAll();
 
-    const rejectBtn = this.statusBarItem.createEl("span", {
+    const rejectBtn = this.statusBarItem.createSpan({
       text: "Reject all",
       cls: "ai-statusbar-btn ai-statusbar-reject",
     });
@@ -305,6 +312,12 @@ export default class AIAgentPlugin extends Plugin {
           apiKey: s.googleEmbeddingApiKey,
           apiModel: s.googleEmbeddingModel,
         });
+      } else if (s.embeddingProvider === "openrouter") {
+        await initEmbedder({
+          provider: "openrouter",
+          apiKey: s.openrouterEmbeddingApiKey,
+          apiModel: s.openrouterEmbeddingModel,
+        });
       } else {
         await initEmbedder({
           provider: "local",
@@ -326,6 +339,18 @@ export default class AIAgentPlugin extends Plugin {
         this.settings.lmstudioMaxTokens || 16384,
       );
     }
+    if (this.settings.provider === "openrouter") {
+      if (!this.settings.openrouterApiKey) return null;
+      // OpenRouter is OpenAI-compatible; the attribution headers identify the
+      // traffic as "Thought Agent" on the OpenRouter dashboard.
+      return new OpenAICompatibleProvider(
+        OPENROUTER_BASE_URL,
+        this.settings.openrouterModel || "deepseek/deepseek-v4-pro",
+        this.settings.openrouterApiKey,
+        16384,
+        openRouterHeaders(),
+      );
+    }
     if (!this.settings.anthropicApiKey) return null;
     return new AnthropicProvider(
       this.settings.anthropicApiKey,
@@ -337,6 +362,9 @@ export default class AIAgentPlugin extends Plugin {
     if (this.settings.provider === "lmstudio") {
       return this.settings.lmstudioModel || "local-model";
     }
+    if (this.settings.provider === "openrouter") {
+      return this.settings.openrouterModel || "deepseek/deepseek-v4-pro";
+    }
     return this.settings.model;
   }
 
@@ -344,6 +372,8 @@ export default class AIAgentPlugin extends Plugin {
     if (!model) return;
     if (this.settings.provider === "lmstudio") {
       this.settings.lmstudioModel = model;
+    } else if (this.settings.provider === "openrouter") {
+      this.settings.openrouterModel = model;
     } else {
       this.settings.model = model;
     }
@@ -362,6 +392,21 @@ export default class AIAgentPlugin extends Plugin {
         if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
         const data = res.json as { data?: Array<{ id: string }> };
         const models = (data.data ?? []).map((m) => m.id).filter(Boolean);
+        return Array.from(new Set([current, ...models].filter(Boolean)));
+      }
+
+      if (this.settings.provider === "openrouter") {
+        const res = await requestUrl({
+          url: `${OPENROUTER_BASE_URL}/models`,
+          headers: openRouterHeaders(),
+          throw: false,
+        });
+        if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
+        const data = res.json as { data?: Array<{ id: string }> };
+        const models = (data.data ?? [])
+          .map((m) => m.id)
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b));
         return Array.from(new Set([current, ...models].filter(Boolean)));
       }
 
@@ -393,6 +438,9 @@ export default class AIAgentPlugin extends Plugin {
     } catch {
       if (this.settings.provider === "lmstudio") {
         return Array.from(new Set([current || "local-model"]));
+      }
+      if (this.settings.provider === "openrouter") {
+        return Array.from(new Set([current || "deepseek/deepseek-v4-pro"]));
       }
       return Array.from(
         new Set([
@@ -580,7 +628,10 @@ export default class AIAgentPlugin extends Plugin {
     const result = await executor.execute("query_graph", { filter });
 
     try {
-      const data = JSON.parse(result.content) as { matchCount?: unknown; nodes?: { path?: string }[] };
+      const data = JSON.parse(result.content) as {
+        matchCount?: unknown;
+        nodes?: { path?: string }[];
+      };
       matchCount = typeof data.matchCount === "number" ? data.matchCount : 0;
       matchedPaths = Array.isArray(data.nodes)
         ? data.nodes

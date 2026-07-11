@@ -25,4 +25,21 @@ export default defineConfig([
       "@typescript-eslint/no-unused-vars": ["warn", { args: "none" }],
     },
   },
+  {
+    // The OpenRouter settings surface legitimately shows the "OpenRouter" brand
+    // name and literal, case-sensitive identifiers — model slugs like
+    // deepseek/deepseek-v4-pro and URLs like https://openrouter.ai/models.
+    // Sentence-casing those would corrupt real values, so treat OpenRouter as a
+    // known brand (added to the defaults) and skip any label carrying a slug/URL.
+    files: ["src/settings.ts"],
+    rules: {
+      "obsidianmd/ui/sentence-case": [
+        "error",
+        {
+          ignoreWords: ["OpenRouter"],
+          ignoreRegex: ["https?://", "[a-z0-9.]+/[a-z0-9.-]+"],
+        },
+      ],
+    },
+  },
 ]);

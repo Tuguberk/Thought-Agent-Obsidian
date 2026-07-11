@@ -31,6 +31,19 @@ var import_obsidian13 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
+
+// src/openrouter.ts
+var OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+var OPENROUTER_SITE_URL = "https://thought-agent.com";
+var OPENROUTER_APP_NAME = "Thought Agent";
+function openRouterHeaders() {
+  return {
+    "HTTP-Referer": OPENROUTER_SITE_URL,
+    "X-OpenRouter-Title": OPENROUTER_APP_NAME
+  };
+}
+
+// src/settings.ts
 var DEFAULT_SETTINGS = {
   provider: "anthropic",
   anthropicApiKey: "",
@@ -38,6 +51,8 @@ var DEFAULT_SETTINGS = {
   lmstudioBaseUrl: "http://localhost:1234/v1",
   lmstudioModel: "",
   lmstudioMaxTokens: 16384,
+  openrouterApiKey: "",
+  openrouterModel: "deepseek/deepseek-v4-pro",
   maxIterations: 15,
   embeddingProvider: "local",
   embeddingModel: "Xenova/all-MiniLM-L6-v2",
@@ -45,6 +60,8 @@ var DEFAULT_SETTINGS = {
   openaiEmbeddingModel: "text-embedding-3-small",
   googleEmbeddingApiKey: "",
   googleEmbeddingModel: "text-embedding-004",
+  openrouterEmbeddingApiKey: "",
+  openrouterEmbeddingModel: "openai/text-embedding-3-small",
   indexedNotesCount: 0,
   indexedChunksCount: 0,
   lastIndexedAt: null,
@@ -65,6 +82,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("Provider").setHeading();
     new import_obsidian.Setting(containerEl).setName("Provider").setDesc("LLM provider to use").addDropdown((drop) => {
       drop.addOption("anthropic", "Anthropic (Claude)");
+      drop.addOption("openrouter", "OpenRouter");
       drop.addOption("lmstudio", "OpenAI compatible API (local)");
       drop.setValue(this.plugin.settings.provider);
       drop.onChange(async (value) => {
@@ -83,13 +101,68 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         text.inputEl.type = "password";
       });
       new import_obsidian.Setting(containerEl).setName("Model").setDesc("Claude model to use").addDropdown((drop) => {
-        drop.addOption("claude-sonnet-4-6", "Claude sonnet 4.6 (recommended)");
+        drop.addOption(
+          "claude-sonnet-4-6",
+          "Claude sonnet 4.6 (recommended)"
+        );
         drop.addOption("claude-opus-4-7", "Claude opus 4.7");
         drop.addOption("claude-haiku-4-5-20251001", "Claude haiku 4.5");
         drop.setValue(this.plugin.settings.model);
         drop.onChange(async (value) => {
           this.plugin.settings.model = value;
           await this.plugin.saveSettings();
+        });
+      });
+    }
+    if (this.plugin.settings.provider === "openrouter") {
+      new import_obsidian.Setting(containerEl).setName("OpenRouter").setHeading();
+      new import_obsidian.Setting(containerEl).setName("API key").setDesc(
+        "Your OpenRouter API key (https://openrouter.ai/keys). Stored in plugin data."
+      ).addText((text) => {
+        text.setPlaceholder("Sk-or-...").setValue(this.plugin.settings.openrouterApiKey).onChange(async (value) => {
+          this.plugin.settings.openrouterApiKey = value.trim();
+          await this.plugin.saveSettings();
+        });
+        text.inputEl.type = "password";
+      });
+      new import_obsidian.Setting(containerEl).setName("Model").setDesc(
+        "OpenRouter model slug, e.g. anthropic/claude-3.7-sonnet or deepseek/deepseek-v4-pro. Browse at https://openrouter.ai/models. You can also switch models from the chat header."
+      ).addText((text) => {
+        text.setPlaceholder("deepseek/deepseek-v4-pro").setValue(this.plugin.settings.openrouterModel).onChange(async (value) => {
+          this.plugin.settings.openrouterModel = value.trim();
+          await this.plugin.saveSettings();
+        });
+      });
+      new import_obsidian.Setting(containerEl).setName("Test connection").setDesc("Send a tiny request to verify the key and model work.").addButton((btn) => {
+        btn.setButtonText("Test").onClick(async () => {
+          btn.setButtonText("Testing...").setDisabled(true);
+          try {
+            const key = this.plugin.settings.openrouterApiKey;
+            if (!key) throw new Error("API key not set");
+            const model = this.plugin.settings.openrouterModel || "deepseek/deepseek-v4-pro";
+            const res = await (0, import_obsidian.requestUrl)({
+              url: `${OPENROUTER_BASE_URL}/chat/completions`,
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${key}`,
+                "Content-Type": "application/json",
+                ...openRouterHeaders()
+              },
+              body: JSON.stringify({
+                model,
+                messages: [{ role: "user", content: "ping" }],
+                max_tokens: 1
+              }),
+              throw: false
+            });
+            if (res.status >= 400)
+              throw new Error(`HTTP ${res.status}: ${res.text}`);
+            new import_obsidian.Notice(`OpenRouter OK \u2014 model ${model} reachable.`);
+          } catch (e) {
+            new import_obsidian.Notice(`OpenRouter test failed: ${e.message}`);
+          } finally {
+            btn.setButtonText("Test").setDisabled(false);
+          }
         });
       });
     }
@@ -107,7 +180,9 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Max tokens").setDesc("Maximum tokens per response (default: 16384). Increase if notes are being cut off.").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Max tokens").setDesc(
+        "Maximum tokens per response (default: 16384). Increase if notes are being cut off."
+      ).addText((text) => {
         text.setPlaceholder("16384").setValue(String(this.plugin.settings.lmstudioMaxTokens)).onChange(async (value) => {
           const n = parseInt(value);
           if (!isNaN(n) && n > 0) {
@@ -150,10 +225,13 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         cls: "setting-item-description"
       });
     }
-    new import_obsidian.Setting(containerEl).setName("Embedding provider").setDesc("Source for text embeddings used in semantic search. Changing provider requires re-indexing the vault.").addDropdown((drop) => {
+    new import_obsidian.Setting(containerEl).setName("Embedding provider").setDesc(
+      "Source for text embeddings used in semantic search. Changing provider requires re-indexing the vault."
+    ).addDropdown((drop) => {
       drop.addOption("local", "Local (default, desktop only)");
       drop.addOption("openai", "OpenAI");
       drop.addOption("google", "Google");
+      drop.addOption("openrouter", "OpenRouter");
       drop.setValue(this.plugin.settings.embeddingProvider);
       drop.onChange(async (value) => {
         this.plugin.settings.embeddingProvider = value;
@@ -163,7 +241,10 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     });
     if (this.plugin.settings.embeddingProvider === "local") {
       new import_obsidian.Setting(containerEl).setName("Local embedding model").setDesc("Downloads on first use. Desktop only.").addDropdown((drop) => {
-        drop.addOption("Xenova/all-MiniLM-L6-v2", "All-minilm-l6-v2 (384-dim, fast)");
+        drop.addOption(
+          "Xenova/all-MiniLM-L6-v2",
+          "All-minilm-l6-v2 (384-dim, fast)"
+        );
         drop.setValue(this.plugin.settings.embeddingModel);
         drop.onChange(async (value) => {
           this.plugin.settings.embeddingModel = value;
@@ -172,7 +253,9 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     }
     if (this.plugin.settings.embeddingProvider === "openai") {
-      new import_obsidian.Setting(containerEl).setName("OpenAI API key").setDesc("Used only for embeddings. Can be the same as your main API key.").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("OpenAI API key").setDesc(
+        "Used only for embeddings. Can be the same as your main API key."
+      ).addText((text) => {
         text.setPlaceholder("API key").setValue(this.plugin.settings.openaiEmbeddingApiKey).onChange(async (value) => {
           this.plugin.settings.openaiEmbeddingApiKey = value;
           await this.plugin.saveSettings();
@@ -180,9 +263,18 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         text.inputEl.type = "password";
       });
       new import_obsidian.Setting(containerEl).setName("OpenAI embedding model").addDropdown((drop) => {
-        drop.addOption("text-embedding-3-small", "Text-embedding-3-small (1536-dim, recommended)");
-        drop.addOption("text-embedding-3-large", "Text-embedding-3-large (3072-dim, best quality)");
-        drop.addOption("text-embedding-ada-002", "Text-embedding-ada-002 (1536-dim, legacy)");
+        drop.addOption(
+          "text-embedding-3-small",
+          "Text-embedding-3-small (1536-dim, recommended)"
+        );
+        drop.addOption(
+          "text-embedding-3-large",
+          "Text-embedding-3-large (3072-dim, best quality)"
+        );
+        drop.addOption(
+          "text-embedding-ada-002",
+          "Text-embedding-ada-002 (1536-dim, legacy)"
+        );
         drop.setValue(this.plugin.settings.openaiEmbeddingModel);
         drop.onChange(async (value) => {
           this.plugin.settings.openaiEmbeddingModel = value;
@@ -197,7 +289,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
               url: "https://api.openai.com/v1/embeddings",
               method: "POST",
               headers: {
-                "Authorization": `Bearer ${this.plugin.settings.openaiEmbeddingApiKey}`,
+                Authorization: `Bearer ${this.plugin.settings.openaiEmbeddingApiKey}`,
                 "Content-Type": "application/json"
               },
               body: JSON.stringify({
@@ -206,9 +298,12 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
               }),
               throw: false
             });
-            if (res.status >= 400) throw new Error(`HTTP ${res.status}: ${res.text}`);
+            if (res.status >= 400)
+              throw new Error(`HTTP ${res.status}: ${res.text}`);
             const data = res.json;
-            new import_obsidian.Notice(`OpenAI embedding OK \u2014 dim: ${data.data[0].embedding.length}`);
+            new import_obsidian.Notice(
+              `OpenAI embedding OK \u2014 dim: ${data.data[0].embedding.length}`
+            );
           } catch (e) {
             new import_obsidian.Notice(`OpenAI embedding failed: ${e.message}`);
           } finally {
@@ -218,7 +313,9 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       });
     }
     if (this.plugin.settings.embeddingProvider === "google") {
-      new import_obsidian.Setting(containerEl).setName("Google API key").setDesc("Gemini API key from Google AI studio. Used only for embeddings.").addText((text) => {
+      new import_obsidian.Setting(containerEl).setName("Google API key").setDesc(
+        "Gemini API key from Google AI studio. Used only for embeddings."
+      ).addText((text) => {
         text.setPlaceholder("API key").setValue(this.plugin.settings.googleEmbeddingApiKey).onChange(async (value) => {
           this.plugin.settings.googleEmbeddingApiKey = value;
           await this.plugin.saveSettings();
@@ -226,7 +323,10 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
         text.inputEl.type = "password";
       });
       new import_obsidian.Setting(containerEl).setName("Google embedding model").addDropdown((drop) => {
-        drop.addOption("text-embedding-004", "Text-embedding-004 (768-dim, recommended)");
+        drop.addOption(
+          "text-embedding-004",
+          "Text-embedding-004 (768-dim, recommended)"
+        );
         drop.setValue(this.plugin.settings.googleEmbeddingModel);
         drop.onChange(async (value) => {
           this.plugin.settings.googleEmbeddingModel = value;
@@ -249,11 +349,68 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
               }),
               throw: false
             });
-            if (res.status >= 400) throw new Error(`HTTP ${res.status}: ${res.text}`);
+            if (res.status >= 400)
+              throw new Error(`HTTP ${res.status}: ${res.text}`);
             const data = res.json;
-            new import_obsidian.Notice(`Google embedding OK \u2014 dim: ${data.embedding.values.length}`);
+            new import_obsidian.Notice(
+              `Google embedding OK \u2014 dim: ${data.embedding.values.length}`
+            );
           } catch (e) {
             new import_obsidian.Notice(`Google embedding failed: ${e.message}`);
+          } finally {
+            btn.setButtonText("Test").setDisabled(false);
+          }
+        });
+      });
+    }
+    if (this.plugin.settings.embeddingProvider === "openrouter") {
+      new import_obsidian.Setting(containerEl).setName("OpenRouter API key").setDesc(
+        "Used only for embeddings. Can be the same key as the OpenRouter LLM provider."
+      ).addText((text) => {
+        text.setPlaceholder("Sk-or-...").setValue(this.plugin.settings.openrouterEmbeddingApiKey).onChange(async (value) => {
+          this.plugin.settings.openrouterEmbeddingApiKey = value.trim();
+          await this.plugin.saveSettings();
+        });
+        text.inputEl.type = "password";
+      });
+      new import_obsidian.Setting(containerEl).setName("OpenRouter embedding model").setDesc(
+        "Embedding model slug, e.g. openai/text-embedding-3-small or qwen/qwen3-embedding-0.6b. Changing it requires re-indexing the vault."
+      ).addText((text) => {
+        text.setPlaceholder("openai/text-embedding-3-small").setValue(this.plugin.settings.openrouterEmbeddingModel).onChange(async (value) => {
+          this.plugin.settings.openrouterEmbeddingModel = value.trim();
+          await this.plugin.saveSettings();
+        });
+      });
+      new import_obsidian.Setting(containerEl).setName("Test OpenRouter embedding").addButton((btn) => {
+        btn.setButtonText("Test").onClick(async () => {
+          btn.setButtonText("Testing...").setDisabled(true);
+          try {
+            const key = this.plugin.settings.openrouterEmbeddingApiKey;
+            if (!key) throw new Error("API key not set");
+            const res = await (0, import_obsidian.requestUrl)({
+              url: `${OPENROUTER_BASE_URL}/embeddings`,
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${key}`,
+                "Content-Type": "application/json",
+                ...openRouterHeaders()
+              },
+              body: JSON.stringify({
+                model: this.plugin.settings.openrouterEmbeddingModel,
+                input: "test"
+              }),
+              throw: false
+            });
+            if (res.status >= 400)
+              throw new Error(`HTTP ${res.status}: ${res.text}`);
+            const data = res.json;
+            new import_obsidian.Notice(
+              `OpenRouter embedding OK \u2014 dim: ${data.data[0].embedding.length}`
+            );
+          } catch (e) {
+            new import_obsidian.Notice(
+              `OpenRouter embedding failed: ${e.message}`
+            );
           } finally {
             btn.setButtonText("Test").setDisabled(false);
           }
@@ -288,14 +445,18 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
       cls: "ai-preview-meta"
     });
     if (excalidrawAvailable) {
-      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc("Re-index .Excalidraw files when they change (no LLM calls, no tokens consumed).").addToggle((t) => {
+      new import_obsidian.Setting(containerEl).setName("Enable diagram watcher").setDesc(
+        "Re-index .Excalidraw files when they change (no LLM calls, no tokens consumed)."
+      ).addToggle((t) => {
         t.setValue(this.plugin.settings.diagramWatcherEnabled);
         t.onChange(async (v) => {
           this.plugin.settings.diagramWatcherEnabled = v;
           await this.plugin.saveSettings();
         });
       });
-      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc('Base folder for all new diagrams. If empty, thought agent uses "diagrams" automatically. Agent can create subfolders only under this folder.').addText((t) => {
+      new import_obsidian.Setting(containerEl).setName("Default diagram folder").setDesc(
+        'Base folder for all new diagrams. If empty, thought agent uses "diagrams" automatically. Agent can create subfolders only under this folder.'
+      ).addText((t) => {
         t.setPlaceholder("E.g. Diagrams").setValue(this.plugin.settings.diagramDefaultFolder).onChange(async (v) => {
           this.plugin.settings.diagramDefaultFolder = v;
           await this.plugin.saveSettings();
@@ -425,7 +586,7 @@ var ChatView = class extends import_obsidian2.ItemView {
   async refreshModelMenu() {
     if (!this.modelMenuEl || !this.modelMenuBtn) return;
     this.modelMenuEl.empty();
-    this.modelMenuEl.createEl("div", {
+    this.modelMenuEl.createDiv({
       text: "Loading models...",
       cls: "ai-menu-item ai-menu-item-muted"
     });
@@ -438,7 +599,7 @@ var ChatView = class extends import_obsidian2.ItemView {
           cls: "ai-menu-item"
         });
         const row = item.createDiv("ai-menu-item-row");
-        row.createEl("span", { text: model, cls: "ai-menu-label" });
+        row.createSpan({ text: model, cls: "ai-menu-label" });
         const checkEl = row.createSpan("ai-menu-check");
         (0, import_obsidian2.setIcon)(checkEl, "check");
         item.onclick = async () => {
@@ -455,7 +616,7 @@ var ChatView = class extends import_obsidian2.ItemView {
           cls: "ai-menu-item is-active"
         });
         const row = item.createDiv("ai-menu-item-row");
-        row.createEl("span", { text: activeModel, cls: "ai-menu-label" });
+        row.createSpan({ text: activeModel, cls: "ai-menu-label" });
         const checkEl = row.createSpan("ai-menu-check is-visible");
         (0, import_obsidian2.setIcon)(checkEl, "check");
         item.onclick = async () => {
@@ -468,7 +629,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     } catch (e) {
       const err = e instanceof Error ? e.message : String(e);
       this.modelMenuEl.empty();
-      this.modelMenuEl.createEl("div", {
+      this.modelMenuEl.createDiv({
         text: "Model list unavailable",
         cls: "ai-menu-item ai-menu-item-muted"
       });
@@ -481,7 +642,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     container.empty();
     container.addClass("ai-chat-container");
     const header = container.createDiv("ai-chat-header");
-    header.createEl("span", { text: "Thought agent", cls: "ai-chat-title" });
+    header.createSpan({ text: "Thought agent", cls: "ai-chat-title" });
     const newChatBtn = header.createEl("button", {
       cls: "ai-chat-settings-btn",
       attr: { "aria-label": "New chat" }
@@ -549,7 +710,7 @@ var ChatView = class extends import_obsidian2.ItemView {
       const row = this.modeAgentItem.createDiv("ai-menu-item-row");
       const iconEl = row.createSpan("ai-menu-icon");
       (0, import_obsidian2.setIcon)(iconEl, "bot");
-      row.createEl("span", { text: "Agent", cls: "ai-menu-label" });
+      row.createSpan({ text: "Agent", cls: "ai-menu-label" });
     }
     this.modePlannerItem = this.modeMenuEl.createEl("button", {
       cls: "ai-menu-item"
@@ -558,7 +719,7 @@ var ChatView = class extends import_obsidian2.ItemView {
       const row = this.modePlannerItem.createDiv("ai-menu-item-row");
       const iconEl = row.createSpan("ai-menu-icon");
       (0, import_obsidian2.setIcon)(iconEl, "list-checks");
-      row.createEl("span", { text: "Planner", cls: "ai-menu-label" });
+      row.createSpan({ text: "Planner", cls: "ai-menu-label" });
     }
     this.modeMenuBtn.onclick = () => this.toggleMenu(this.modeMenuEl);
     this.modeAgentItem.onclick = () => this.setRunMode("agent");
@@ -676,8 +837,8 @@ var ChatView = class extends import_obsidian2.ItemView {
     this.sessionBadgeEl.show();
     for (const chip of chips) {
       const el = this.sessionBadgeEl.createDiv("ai-context-chip");
-      el.createEl("span", { text: chip.icon, cls: "ai-context-chip-icon" });
-      el.createEl("span", { text: chip.label, cls: "ai-context-chip-label" });
+      el.createSpan({ text: chip.icon, cls: "ai-context-chip-icon" });
+      el.createSpan({ text: chip.label, cls: "ai-context-chip-label" });
       if (chip.onClear) {
         const x = el.createEl("button", {
           text: "\xD7",
@@ -781,8 +942,8 @@ var ChatView = class extends import_obsidian2.ItemView {
             currentRawText = "";
             lastToolDetailsEl = null;
             thinkingEl = bubble.createDiv("ai-thinking-block");
-            thinkingEl.createEl("span", { cls: "ai-thinking-dot" });
-            thinkingEl.createEl("span", {
+            thinkingEl.createSpan({ cls: "ai-thinking-dot" });
+            thinkingEl.createSpan({
               text: "Thinking\u2026",
               cls: "ai-thinking-label"
             });
@@ -827,11 +988,11 @@ var ChatView = class extends import_obsidian2.ItemView {
             });
             const titleRow = summary.createDiv("ai-tool-title-row");
             const pill = getToolPill(name);
-            titleRow.createEl("span", {
+            titleRow.createSpan({
               text: pill.label,
               cls: `ai-tool-type-pill ${pill.cls}`
             });
-            titleRow.createEl("span", { text: name, cls: "ai-tool-name" });
+            titleRow.createSpan({ text: name, cls: "ai-tool-name" });
             details.createEl("pre").createEl("code", { text: JSON.stringify(input, null, 2) });
             this.scrollToBottom();
           },
@@ -899,8 +1060,8 @@ var ChatView = class extends import_obsidian2.ItemView {
           const img = chip.createEl("img", { cls: "ai-bubble-attachment-thumb" });
           img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
         } else {
-          chip.createEl("span", { text: "\u{1F4C4}", cls: "ai-attachment-icon" });
-          chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+          chip.createSpan({ text: "\u{1F4C4}", cls: "ai-attachment-icon" });
+          chip.createSpan({ text: att.name, cls: "ai-attachment-name" });
         }
       }
     }
@@ -911,7 +1072,7 @@ var ChatView = class extends import_obsidian2.ItemView {
     this.inputEl.disabled = running;
     if (running) {
       this.sendBtn.empty();
-      this.sendBtn.createEl("span", { cls: "ai-stop-square" });
+      this.sendBtn.createSpan({ cls: "ai-stop-square" });
       this.sendBtn.title = "Stop";
       this.sendBtn.classList.add("ai-chat-stop-btn");
       this.sendBtn.classList.remove("mod-cta");
@@ -971,9 +1132,9 @@ var ChatView = class extends import_obsidian2.ItemView {
         const img = chip.createEl("img", { cls: "ai-attachment-thumb" });
         img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
       } else {
-        chip.createEl("span", { text: "\u{1F4C4}", cls: "ai-attachment-icon" });
+        chip.createSpan({ text: "\u{1F4C4}", cls: "ai-attachment-icon" });
       }
-      chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+      chip.createSpan({ text: att.name, cls: "ai-attachment-name" });
       const rm = chip.createEl("button", { text: "\xD7", cls: "ai-attachment-remove" });
       rm.onclick = () => {
         this.attachments.splice(idx, 1);
@@ -1171,7 +1332,7 @@ var PreviewView = class extends import_obsidian4.ItemView {
       const step = change.steps[i];
       const stepEl = container.createDiv("ai-reorganize-step");
       const stepHeader = stepEl.createDiv("ai-reorganize-step-header");
-      stepHeader.createEl("span", { text: `Step ${i + 1}: ${step.kind}` });
+      stepHeader.createSpan({ text: `Step ${i + 1}: ${step.kind}` });
       const skipBtn = stepHeader.createEl("button", { text: "Skip" });
       skipBtn.onclick = () => {
         change.steps.splice(i, 1);
@@ -1184,7 +1345,7 @@ var PreviewView = class extends import_obsidian4.ItemView {
   }
   renderCreateDiagram(container, change) {
     const typeLabel = change.spec.type.replace("-", " ").toUpperCase();
-    container.createEl("span", { text: typeLabel, cls: "ai-diagram-badge" });
+    container.createSpan({ text: typeLabel, cls: "ai-diagram-badge" });
     container.createEl("p", { text: `File: ${change.filePath}`, cls: "ai-preview-meta" });
     container.createEl("p", { text: `${change.spec.nodes.length} nodes \xB7 ${change.spec.edges.length} edges`, cls: "ai-preview-meta" });
     container.createEl("h3", { text: "Nodes" });
@@ -1278,7 +1439,7 @@ var GraphQueryView = class extends import_obsidian5.ItemView {
     container.empty();
     container.addClass("ai-graph-container");
     const toolbar = container.createDiv("ai-graph-toolbar");
-    toolbar.createEl("span", { text: this.filterDescription || "Filtered Graph", cls: "ai-graph-filter-label" });
+    toolbar.createSpan({ text: this.filterDescription || "Filtered Graph", cls: "ai-graph-filter-label" });
     const closeBtn = toolbar.createEl("button", { text: "Close" });
     closeBtn.onclick = () => this.leaf.detach();
     this.canvas = container.createEl("canvas", { cls: "ai-graph-canvas" });
@@ -4227,11 +4388,12 @@ async function extractPdfText(base64) {
   return parts.join("\n\n");
 }
 var OpenAICompatibleProvider = class {
-  constructor(baseUrl, model, apiKey = "lm-studio", maxTokens = 16384) {
+  constructor(baseUrl, model, apiKey = "lm-studio", maxTokens = 16384, extraHeaders = {}) {
     this.baseUrl = baseUrl;
     this.model = model;
     this.apiKey = apiKey;
     this.maxTokens = maxTokens;
+    this.extraHeaders = extraHeaders;
   }
   supportsNativeToolUse() {
     return true;
@@ -4288,7 +4450,8 @@ ${text}` });
       body.tool_choice = "auto";
     }
     const headers = {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...this.extraHeaders
     };
     if (this.apiKey && this.apiKey !== "lm-studio") {
       headers["Authorization"] = `Bearer ${this.apiKey}`;
@@ -4301,15 +4464,16 @@ ${text}` });
       throw: false
     });
     if (res.status >= 400) {
-      throw new Error(`LMStudio error ${res.status}: ${res.text}`);
+      throw new Error(`API error ${res.status}: ${res.text}`);
     }
     const data = res.json;
     const choice = data.choices[0];
     const msg = choice.message;
     const content = [];
+    const reasoningText = msg.reasoning_content ?? msg.reasoning;
     let toolCalls = msg.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      const searchText = (msg.reasoning_content ?? "") + (msg.content ?? "");
+      const searchText = (reasoningText ?? "") + (msg.content ?? "");
       toolCalls = parseXmlToolCalls(searchText);
     }
     if (toolCalls.length === 0 && msg.content) {
@@ -4329,7 +4493,7 @@ ${text}` });
       });
     }
     const stopReason = toolCalls.length > 0 ? "tool_use" : "end_turn";
-    const reasoning = msg.reasoning_content?.trim() || void 0;
+    const reasoning = reasoningText?.trim() || void 0;
     return { content, stopReason, reasoning };
   }
   convertMessages(messages) {
@@ -5193,7 +5357,8 @@ async function initEmbedder(config) {
     return;
   }
   ready = true;
-  const providerName = config.provider === "openai" ? "OpenAI" : "Google";
+  const providerNames = { openai: "OpenAI", google: "Google", openrouter: "OpenRouter" };
+  const providerName = providerNames[config.provider] ?? config.provider;
   new import_obsidian7.Notice(`Embedding provider: ${providerName} (${config.apiModel})`);
 }
 async function initLocalPipeline(model, pluginDir) {
@@ -5231,8 +5396,8 @@ async function embed(text) {
     const output = await pipelineInstance(text, { pooling: "mean", normalize: true });
     return Array.from(output.data);
   }
-  if (currentConfig.provider === "openai") {
-    const results = await embedWithOpenAI([text], currentConfig.apiKey, currentConfig.apiModel);
+  if (currentConfig.provider === "openai" || currentConfig.provider === "openrouter") {
+    const results = await embedWithOpenAICompatible([text], currentConfig.provider, currentConfig.apiKey, currentConfig.apiModel);
     return results[0] ?? [];
   }
   if (currentConfig.provider === "google") {
@@ -5242,12 +5407,12 @@ async function embed(text) {
 }
 async function embedBatch(texts, onProgress) {
   if (!ready || texts.length === 0) return texts.map(() => []);
-  if (currentConfig.provider === "openai") {
+  if (currentConfig.provider === "openai" || currentConfig.provider === "openrouter") {
     const CHUNK = 100;
     const results2 = [];
     for (let i = 0; i < texts.length; i += CHUNK) {
       const batch = texts.slice(i, i + CHUNK);
-      const embeddings = await embedWithOpenAI(batch, currentConfig.apiKey, currentConfig.apiModel);
+      const embeddings = await embedWithOpenAICompatible(batch, currentConfig.provider, currentConfig.apiKey, currentConfig.apiModel);
       results2.push(...embeddings);
       if (onProgress) onProgress(Math.min(i + CHUNK, texts.length), texts.length);
     }
@@ -5264,15 +5429,25 @@ async function embedBatch(texts, onProgress) {
   }
   return results;
 }
-async function embedWithOpenAI(texts, apiKey, model) {
+async function embedWithOpenAICompatible(texts, provider, apiKey, model) {
+  const isOpenRouter = provider === "openrouter";
+  const url = isOpenRouter ? `${OPENROUTER_BASE_URL}/embeddings` : "https://api.openai.com/v1/embeddings";
+  const headers = {
+    "Authorization": `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+    ...isOpenRouter ? openRouterHeaders() : {}
+  };
   const res = await (0, import_obsidian7.requestUrl)({
-    url: "https://api.openai.com/v1/embeddings",
+    url,
     method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ model, input: texts }),
     throw: false
   });
-  if (res.status >= 400) throw new Error(`OpenAI embedding error ${res.status}: ${res.text}`);
+  if (res.status >= 400) {
+    const label = isOpenRouter ? "OpenRouter" : "OpenAI";
+    throw new Error(`${label} embedding error ${res.status}: ${res.text}`);
+  }
   const data = res.json;
   return data.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
 }
@@ -7751,7 +7926,11 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
     void this.vectorStore.save();
   }
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign(
+      {},
+      DEFAULT_SETTINGS,
+      await this.loadData()
+    );
     this.chatModelContextFingerprint = this.getChatModelContextFingerprint();
   }
   async saveSettings() {
@@ -7769,7 +7948,9 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
       anthropicApiKey: this.settings.anthropicApiKey,
       model: this.settings.model,
       lmstudioBaseUrl: this.settings.lmstudioBaseUrl,
-      lmstudioModel: this.settings.lmstudioModel
+      lmstudioModel: this.settings.lmstudioModel,
+      openrouterApiKey: this.settings.openrouterApiKey,
+      openrouterModel: this.settings.openrouterModel
     });
   }
   onChatModelContextChanged(listener) {
@@ -7805,17 +7986,17 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
       return;
     }
     this.statusBarItem.show();
-    const label = this.statusBarItem.createEl("span", {
+    const label = this.statusBarItem.createSpan({
       text: `${count} pending`,
       cls: "ai-statusbar-count"
     });
     label.onclick = () => this.revealFirstPending();
-    const approveBtn = this.statusBarItem.createEl("span", {
+    const approveBtn = this.statusBarItem.createSpan({
       text: "Approve all",
       cls: "ai-statusbar-btn ai-statusbar-approve"
     });
     approveBtn.onclick = () => this.approveAll();
-    const rejectBtn = this.statusBarItem.createEl("span", {
+    const rejectBtn = this.statusBarItem.createSpan({
       text: "Reject all",
       cls: "ai-statusbar-btn ai-statusbar-reject"
     });
@@ -7883,6 +8064,12 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
           apiKey: s.googleEmbeddingApiKey,
           apiModel: s.googleEmbeddingModel
         });
+      } else if (s.embeddingProvider === "openrouter") {
+        await initEmbedder({
+          provider: "openrouter",
+          apiKey: s.openrouterEmbeddingApiKey,
+          apiModel: s.openrouterEmbeddingModel
+        });
       } else {
         await initEmbedder({
           provider: "local",
@@ -7902,6 +8089,16 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
         this.settings.lmstudioMaxTokens || 16384
       );
     }
+    if (this.settings.provider === "openrouter") {
+      if (!this.settings.openrouterApiKey) return null;
+      return new OpenAICompatibleProvider(
+        OPENROUTER_BASE_URL,
+        this.settings.openrouterModel || "deepseek/deepseek-v4-pro",
+        this.settings.openrouterApiKey,
+        16384,
+        openRouterHeaders()
+      );
+    }
     if (!this.settings.anthropicApiKey) return null;
     return new AnthropicProvider(
       this.settings.anthropicApiKey,
@@ -7912,12 +8109,17 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
     if (this.settings.provider === "lmstudio") {
       return this.settings.lmstudioModel || "local-model";
     }
+    if (this.settings.provider === "openrouter") {
+      return this.settings.openrouterModel || "deepseek/deepseek-v4-pro";
+    }
     return this.settings.model;
   }
   async setActiveModel(model) {
     if (!model) return;
     if (this.settings.provider === "lmstudio") {
       this.settings.lmstudioModel = model;
+    } else if (this.settings.provider === "openrouter") {
+      this.settings.openrouterModel = model;
     } else {
       this.settings.model = model;
     }
@@ -7934,6 +8136,17 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
         if (res2.status >= 400) throw new Error(`HTTP ${res2.status}`);
         const data2 = res2.json;
         const models2 = (data2.data ?? []).map((m) => m.id).filter(Boolean);
+        return Array.from(new Set([current, ...models2].filter(Boolean)));
+      }
+      if (this.settings.provider === "openrouter") {
+        const res2 = await (0, import_obsidian13.requestUrl)({
+          url: `${OPENROUTER_BASE_URL}/models`,
+          headers: openRouterHeaders(),
+          throw: false
+        });
+        if (res2.status >= 400) throw new Error(`HTTP ${res2.status}`);
+        const data2 = res2.json;
+        const models2 = (data2.data ?? []).map((m) => m.id).filter(Boolean).sort((a, b) => a.localeCompare(b));
         return Array.from(new Set([current, ...models2].filter(Boolean)));
       }
       if (!this.settings.anthropicApiKey) {
@@ -7962,6 +8175,9 @@ var AIAgentPlugin = class extends import_obsidian13.Plugin {
     } catch {
       if (this.settings.provider === "lmstudio") {
         return Array.from(/* @__PURE__ */ new Set([current || "local-model"]));
+      }
+      if (this.settings.provider === "openrouter") {
+        return Array.from(/* @__PURE__ */ new Set([current || "deepseek/deepseek-v4-pro"]));
       }
       return Array.from(
         /* @__PURE__ */ new Set([

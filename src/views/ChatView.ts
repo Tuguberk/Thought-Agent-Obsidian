@@ -91,7 +91,7 @@ export class ChatView extends ItemView {
   private async refreshModelMenu(): Promise<void> {
     if (!this.modelMenuEl || !this.modelMenuBtn) return;
     this.modelMenuEl.empty();
-    this.modelMenuEl.createEl("div", {
+    this.modelMenuEl.createDiv({
       text: "Loading models...",
       cls: "ai-menu-item ai-menu-item-muted",
     });
@@ -106,7 +106,7 @@ export class ChatView extends ItemView {
           cls: "ai-menu-item",
         });
         const row = item.createDiv("ai-menu-item-row");
-        row.createEl("span", { text: model, cls: "ai-menu-label" });
+        row.createSpan({ text: model, cls: "ai-menu-label" });
         const checkEl = row.createSpan("ai-menu-check");
         setIcon(checkEl, "check");
         item.onclick = async () => {
@@ -124,7 +124,7 @@ export class ChatView extends ItemView {
           cls: "ai-menu-item is-active",
         });
         const row = item.createDiv("ai-menu-item-row");
-        row.createEl("span", { text: activeModel, cls: "ai-menu-label" });
+        row.createSpan({ text: activeModel, cls: "ai-menu-label" });
         const checkEl = row.createSpan("ai-menu-check is-visible");
         setIcon(checkEl, "check");
         item.onclick = async () => {
@@ -137,7 +137,7 @@ export class ChatView extends ItemView {
     } catch (e: unknown) {
       const err = e instanceof Error ? e.message : String(e);
       this.modelMenuEl.empty();
-      this.modelMenuEl.createEl("div", {
+      this.modelMenuEl.createDiv({
         text: "Model list unavailable",
         cls: "ai-menu-item ai-menu-item-muted",
       });
@@ -152,7 +152,7 @@ export class ChatView extends ItemView {
     container.addClass("ai-chat-container");
 
     const header = container.createDiv("ai-chat-header");
-    header.createEl("span", { text: "Thought agent", cls: "ai-chat-title" });
+    header.createSpan({ text: "Thought agent", cls: "ai-chat-title" });
     const newChatBtn = header.createEl("button", {
       cls: "ai-chat-settings-btn",
       attr: { "aria-label": "New chat" },
@@ -230,7 +230,7 @@ export class ChatView extends ItemView {
       const row = this.modeAgentItem.createDiv("ai-menu-item-row");
       const iconEl = row.createSpan("ai-menu-icon");
       setIcon(iconEl, "bot");
-      row.createEl("span", { text: "Agent", cls: "ai-menu-label" });
+      row.createSpan({ text: "Agent", cls: "ai-menu-label" });
     }
     this.modePlannerItem = this.modeMenuEl.createEl("button", {
       cls: "ai-menu-item",
@@ -239,7 +239,7 @@ export class ChatView extends ItemView {
       const row = this.modePlannerItem.createDiv("ai-menu-item-row");
       const iconEl = row.createSpan("ai-menu-icon");
       setIcon(iconEl, "list-checks");
-      row.createEl("span", { text: "Planner", cls: "ai-menu-label" });
+      row.createSpan({ text: "Planner", cls: "ai-menu-label" });
     }
     this.modeMenuBtn.onclick = () => this.toggleMenu(this.modeMenuEl);
     this.modeAgentItem.onclick = () => this.setRunMode("agent");
@@ -375,8 +375,8 @@ export class ChatView extends ItemView {
     this.sessionBadgeEl.show();
     for (const chip of chips) {
       const el = this.sessionBadgeEl.createDiv("ai-context-chip");
-      el.createEl("span", { text: chip.icon, cls: "ai-context-chip-icon" });
-      el.createEl("span", { text: chip.label, cls: "ai-context-chip-label" });
+      el.createSpan({ text: chip.icon, cls: "ai-context-chip-icon" });
+      el.createSpan({ text: chip.label, cls: "ai-context-chip-label" });
       if (chip.onClear) {
         const x = el.createEl("button", {
           text: "×",
@@ -524,8 +524,8 @@ export class ChatView extends ItemView {
             currentRawText = "";
             lastToolDetailsEl = null;
             thinkingEl = bubble.createDiv("ai-thinking-block");
-            thinkingEl.createEl("span", { cls: "ai-thinking-dot" });
-            thinkingEl.createEl("span", {
+            thinkingEl.createSpan({ cls: "ai-thinking-dot" });
+            thinkingEl.createSpan({
               text: "Thinking…",
               cls: "ai-thinking-label",
             });
@@ -574,11 +574,11 @@ export class ChatView extends ItemView {
             });
             const titleRow = summary.createDiv("ai-tool-title-row");
             const pill = getToolPill(name);
-            titleRow.createEl("span", {
+            titleRow.createSpan({
               text: pill.label,
               cls: `ai-tool-type-pill ${pill.cls}`,
             });
-            titleRow.createEl("span", { text: name, cls: "ai-tool-name" });
+            titleRow.createSpan({ text: name, cls: "ai-tool-name" });
             details
               .createEl("pre")
               .createEl("code", { text: JSON.stringify(input, null, 2) });
@@ -669,8 +669,8 @@ export class ChatView extends ItemView {
           const img = chip.createEl("img", { cls: "ai-bubble-attachment-thumb" });
           img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
         } else {
-          chip.createEl("span", { text: "📄", cls: "ai-attachment-icon" });
-          chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+          chip.createSpan({ text: "📄", cls: "ai-attachment-icon" });
+          chip.createSpan({ text: att.name, cls: "ai-attachment-name" });
         }
       }
     }
@@ -682,7 +682,7 @@ export class ChatView extends ItemView {
     this.inputEl.disabled = running;
     if (running) {
       this.sendBtn.empty();
-      this.sendBtn.createEl("span", { cls: "ai-stop-square" });
+      this.sendBtn.createSpan({ cls: "ai-stop-square" });
       this.sendBtn.title = "Stop";
       this.sendBtn.classList.add("ai-chat-stop-btn");
       this.sendBtn.classList.remove("mod-cta");
@@ -751,9 +751,9 @@ export class ChatView extends ItemView {
         const img = chip.createEl("img", { cls: "ai-attachment-thumb" });
         img.src = `data:${att.block.source.media_type};base64,${att.block.source.data}`;
       } else {
-        chip.createEl("span", { text: "📄", cls: "ai-attachment-icon" });
+        chip.createSpan({ text: "📄", cls: "ai-attachment-icon" });
       }
-      chip.createEl("span", { text: att.name, cls: "ai-attachment-name" });
+      chip.createSpan({ text: att.name, cls: "ai-attachment-name" });
       const rm = chip.createEl("button", { text: "×", cls: "ai-attachment-remove" });
       rm.onclick = () => {
         this.attachments.splice(idx, 1);

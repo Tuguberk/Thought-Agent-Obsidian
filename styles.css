@@ -670,9 +670,12 @@
   margin-left: 6px;
 }
 
-.ai-chat-stop-btn {
-  background: color-mix(in srgb, var(--background-modifier-border) 84%, var(--background-secondary)) !important;
-  color: var(--text-normal) !important;
+/* Both classes are always present on the stop button (see setRunning), so the
+   combined selector outranks .mod-cta and the base button styles without
+   needing !important. */
+.ai-chat-send-btn.ai-chat-stop-btn {
+  background: color-mix(in srgb, var(--background-modifier-border) 84%, var(--background-secondary));
+  color: var(--text-normal);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -682,8 +685,8 @@
   border-radius: 50%;
 }
 
-.ai-chat-stop-btn:hover {
-  background: var(--background-modifier-border-hover) !important;
+.ai-chat-send-btn.ai-chat-stop-btn:hover {
+  background: var(--background-modifier-border-hover);
 }
 
 .ai-stop-square {
@@ -862,7 +865,7 @@
 
 .ai-statusbar-approve {
   background: var(--color-green);
-  color: #fff;
+  color: #ffffff;
 }
 
 .ai-statusbar-approve:hover {
@@ -876,7 +879,7 @@
 
 .ai-statusbar-reject:hover {
   background: var(--color-red);
-  color: #fff;
+  color: #ffffff;
 }
 
 /* Settings */

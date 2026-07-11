@@ -1,6 +1,6 @@
 {
   "name": "thought-agent",
-  "version": "1.0.7",
+  "version": "1.1.0",
   "description": "Thought Agent — Obsidian AI plugin",
   "main": "main.js",
   "scripts": {
@@ -15,7 +15,6 @@
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
-    "builtin-modules": "^3.3.0",
     "esbuild": "^0.21.3",
     "eslint": "^9.39.4",
     "eslint-plugin-obsidianmd": "^0.2.4",
@@ -26,5 +25,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
     "@xenova/transformers": "^2.17.2"
+  },
+  "overrides": {
+    "protobufjs": "^7.5.5"
   }
 }

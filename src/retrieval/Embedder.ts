@@ -1,4 +1,5 @@
 import { Notice, Platform, requestUrl } from 'obsidian'
+import { OPENROUTER_BASE_URL, openRouterHeaders } from '../openrouter'
 
 // @xenova/transformers is marked external in esbuild — Node.js require() resolves
 // it from node_modules at runtime, preserving import.meta.url and __dirname.
@@ -7,7 +8,7 @@ declare const require: (id: string) => Record<string, unknown>
 type PipelineFunction = (text: string | string[], options: Record<string, unknown>) => Promise<{ data: Float32Array }>
 type TransformersEnv = { cacheDir: string; allowLocalModels: boolean; allowRemoteModels: boolean }
 
-export type EmbeddingProvider = 'local' | 'openai' | 'google'
+export type EmbeddingProvider = 'local' | 'openai' | 'google' | 'openrouter'
 
 export interface EmbeddingConfig {
   provider: EmbeddingProvider
@@ -58,7 +59,8 @@ export async function initEmbedder(config: EmbeddingConfig): Promise<void> {
     return
   }
   ready = true
-  const providerName = config.provider === 'openai' ? 'OpenAI' : 'Google'
+  const providerNames: Record<string, string> = { openai: 'OpenAI', google: 'Google', openrouter: 'OpenRouter' }
+  const providerName = providerNames[config.provider] ?? config.provider
   new Notice(`Embedding provider: ${providerName} (${config.apiModel})`)
 }
 
@@ -98,8 +100,8 @@ export async function embed(text: string): Promise<number[]> {
     return Array.from(output.data)
   }
 
-  if (currentConfig.provider === 'openai') {
-    const results = await embedWithOpenAI([text], currentConfig.apiKey!, currentConfig.apiModel!)
+  if (currentConfig.provider === 'openai' || currentConfig.provider === 'openrouter') {
+    const results = await embedWithOpenAICompatible([text], currentConfig.provider, currentConfig.apiKey!, currentConfig.apiModel!)
     return results[0] ?? []
   }
 
@@ -116,12 +118,12 @@ export async function embedBatch(
 ): Promise<number[][]> {
   if (!ready || texts.length === 0) return texts.map(() => [])
 
-  if (currentConfig.provider === 'openai') {
+  if (currentConfig.provider === 'openai' || currentConfig.provider === 'openrouter') {
     const CHUNK = 100
     const results: number[][] = []
     for (let i = 0; i < texts.length; i += CHUNK) {
       const batch = texts.slice(i, i + CHUNK)
-      const embeddings = await embedWithOpenAI(batch, currentConfig.apiKey!, currentConfig.apiModel!)
+      const embeddings = await embedWithOpenAICompatible(batch, currentConfig.provider, currentConfig.apiKey!, currentConfig.apiModel!)
       results.push(...embeddings)
       if (onProgress) onProgress(Math.min(i + CHUNK, texts.length), texts.length)
     }
@@ -142,15 +144,35 @@ export async function embedBatch(
   return results
 }
 
-async function embedWithOpenAI(texts: string[], apiKey: string, model: string): Promise<number[][]> {
+// OpenAI and OpenRouter share the same /embeddings request/response schema
+// (`data[].embedding` sorted by `index`), so one function serves both — only
+// the base URL, error label, and OpenRouter's attribution headers differ.
+async function embedWithOpenAICompatible(
+  texts: string[],
+  provider: 'openai' | 'openrouter',
+  apiKey: string,
+  model: string,
+): Promise<number[][]> {
+  const isOpenRouter = provider === 'openrouter'
+  const url = isOpenRouter
+    ? `${OPENROUTER_BASE_URL}/embeddings`
+    : 'https://api.openai.com/v1/embeddings'
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+    ...(isOpenRouter ? openRouterHeaders() : {}),
+  }
   const res = await requestUrl({
-    url: 'https://api.openai.com/v1/embeddings',
+    url,
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ model, input: texts }),
     throw: false,
   })
-  if (res.status >= 400) throw new Error(`OpenAI embedding error ${res.status}: ${res.text}`)
+  if (res.status >= 400) {
+    const label = isOpenRouter ? 'OpenRouter' : 'OpenAI'
+    throw new Error(`${label} embedding error ${res.status}: ${res.text}`)
+  }
   const data = res.json as { data: Array<{ index: number; embedding: number[] }> }
   return data.data.sort((a, b) => a.index - b.index).map(d => d.embedding)
 }

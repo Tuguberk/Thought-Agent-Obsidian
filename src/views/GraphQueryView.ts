@@ -64,7 +64,7 @@ export class GraphQueryView extends ItemView {
     container.addClass('ai-graph-container')
 
     const toolbar = container.createDiv('ai-graph-toolbar')
-    toolbar.createEl('span', { text: this.filterDescription || 'Filtered Graph', cls: 'ai-graph-filter-label' })
+    toolbar.createSpan({ text: this.filterDescription || 'Filtered Graph', cls: 'ai-graph-filter-label' })
 
     const closeBtn = toolbar.createEl('button', { text: 'Close' })
     closeBtn.onclick = () => this.leaf.detach()

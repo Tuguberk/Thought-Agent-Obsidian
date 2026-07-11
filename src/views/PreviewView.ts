@@ -154,7 +154,7 @@ export class PreviewView extends ItemView {
       const step = change.steps[i]
       const stepEl = container.createDiv('ai-reorganize-step')
       const stepHeader = stepEl.createDiv('ai-reorganize-step-header')
-      stepHeader.createEl('span', { text: `Step ${i + 1}: ${step.kind}` })
+      stepHeader.createSpan({ text: `Step ${i + 1}: ${step.kind}` })
       const skipBtn = stepHeader.createEl('button', { text: 'Skip' })
       skipBtn.onclick = () => { change.steps.splice(i, 1); this.renderChange() }
       if (step.kind === 'create') stepEl.createEl('code', { text: step.note.path })
@@ -165,7 +165,7 @@ export class PreviewView extends ItemView {
 
   private renderCreateDiagram(container: HTMLElement, change: Extract<PendingChange, { kind: 'create_diagram' }>): void {
     const typeLabel = change.spec.type.replace('-', ' ').toUpperCase()
-    container.createEl('span', { text: typeLabel, cls: 'ai-diagram-badge' })
+    container.createSpan({ text: typeLabel, cls: 'ai-diagram-badge' })
 
     container.createEl('p', { text: `File: ${change.filePath}`, cls: 'ai-preview-meta' })
     container.createEl('p', { text: `${change.spec.nodes.length} nodes · ${change.spec.edges.length} edges`, cls: 'ai-preview-meta' })

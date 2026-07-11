@@ -34,6 +34,7 @@ interface OAIResponse {
       role: string;
       content: string | null;
       reasoning_content?: string; // Qwen3 thinking mode
+      reasoning?: string; // OpenRouter thinking models expose it under `reasoning`
       tool_calls?: OAIToolCall[];
     };
   }>;
@@ -85,15 +86,26 @@ function parseXmlToolCalls(text: string): OAIToolCall[] {
   return results;
 }
 
+// Minimal shape of the pdf.js module returned by Obsidian's loadPdfJs(), which
+// is typed as `any`. Casting to this narrow interface keeps the extraction code
+// type-safe instead of propagating `any`.
+interface PdfPage {
+  getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
+}
+interface PdfDocument {
+  numPages: number;
+  getPage: (n: number) => Promise<PdfPage>;
+}
+interface PdfJsModule {
+  getDocument: (src: { data: Uint8Array }) => { promise: Promise<PdfDocument> };
+}
+
 async function extractPdfText(base64: string): Promise<string> {
-  const pdfjs = await loadPdfJs();
+  const pdfjs = (await loadPdfJs()) as PdfJsModule;
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const pdf = await pdfjs.getDocument({ data: bytes }).promise as {
-    numPages: number;
-    getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str: string }> }> }>;
-  };
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
   const parts: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
@@ -109,6 +121,9 @@ export class OpenAICompatibleProvider implements LLMProvider {
     private model: string,
     private apiKey = "lm-studio",
     private maxTokens = 16384,
+    // Extra request headers (e.g. OpenRouter's HTTP-Referer / X-OpenRouter-Title
+    // attribution). Merged into every chat/completions call.
+    private extraHeaders: Record<string, string> = {},
   ) {}
 
   supportsNativeToolUse(): boolean {
@@ -176,6 +191,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      ...this.extraHeaders,
     };
     if (this.apiKey && this.apiKey !== "lm-studio") {
       headers["Authorization"] = `Bearer ${this.apiKey}`;
@@ -190,7 +206,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     });
 
     if (res.status >= 400) {
-      throw new Error(`LMStudio error ${res.status}: ${res.text}`);
+      throw new Error(`API error ${res.status}: ${res.text}`);
     }
 
     const data = res.json as OAIResponse;
@@ -198,10 +214,15 @@ export class OpenAICompatibleProvider implements LLMProvider {
     const msg = choice.message;
     const content: ContentBlock[] = [];
 
+    // Different OpenAI-compatible backends expose chain-of-thought under
+    // different keys: LM Studio/Qwen use `reasoning_content`, OpenRouter uses
+    // `reasoning`. Treat either as the reasoning text.
+    const reasoningText = msg.reasoning_content ?? msg.reasoning;
+
     // Resolve tool calls: prefer structured tool_calls, fall back to XML in content/reasoning
     let toolCalls = msg.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      const searchText = (msg.reasoning_content ?? "") + (msg.content ?? "");
+      const searchText = (reasoningText ?? "") + (msg.content ?? "");
       toolCalls = parseXmlToolCalls(searchText);
     }
 
@@ -226,7 +247,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     }
 
     const stopReason = toolCalls.length > 0 ? "tool_use" : "end_turn";
-    const reasoning = msg.reasoning_content?.trim() || undefined;
+    const reasoning = reasoningText?.trim() || undefined;
     return { content, stopReason, reasoning };
   }
 
