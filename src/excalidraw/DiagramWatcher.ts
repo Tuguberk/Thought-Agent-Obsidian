@@ -30,9 +30,8 @@ export class DiagramWatcher {
 
   private debounce(path: string): void {
     this.cancelDebounce(path)
-    // Obsidian review guidance: timer functions use window, not activeWindow
-    // (a debounce shouldn't be bound to whichever window happens to be focused).
-    // eslint-disable-next-line obsidianmd/prefer-active-doc
+    // Timers use window, not activeWindow (per Obsidian review): a debounce
+    // shouldn't be bound to whichever window happens to be focused.
     this.timers.set(path, window.setTimeout(() => {
       this.timers.delete(path)
       void this.indexer.reindexFile(path)
@@ -41,7 +40,6 @@ export class DiagramWatcher {
 
   private cancelDebounce(path: string): void {
     const t = this.timers.get(path)
-    // eslint-disable-next-line obsidianmd/prefer-active-doc
     if (t) { window.clearTimeout(t); this.timers.delete(path) }
   }
 }

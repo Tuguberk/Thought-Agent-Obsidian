@@ -223,7 +223,6 @@ async function embedBatchWithGoogle(
 }
 
 function yieldToUI(): Promise<void> {
-  // Obsidian review guidance: use window for timers, not activeWindow.
-  // eslint-disable-next-line obsidianmd/prefer-active-doc
+  // Timers use window, not activeWindow (per Obsidian review).
   return new Promise(resolve => window.setTimeout(resolve, 0))
 }

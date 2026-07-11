@@ -72,8 +72,7 @@ export class VectorStore {
   scheduleSave(): void {
     if (this.saveScheduled) return;
     this.saveScheduled = true;
-    // Obsidian review guidance: use window for timers, not activeWindow.
-    // eslint-disable-next-line obsidianmd/prefer-active-doc
+    // Timers use window, not activeWindow (per Obsidian review).
     window.setTimeout(() => {
       void this.save().finally(() => { this.saveScheduled = false; });
     }, 2000);
