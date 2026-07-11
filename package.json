@@ -1,6 +1,6 @@
 {
   "name": "thought-agent",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Thought Agent — Obsidian AI plugin",
   "main": "main.js",
   "scripts": {

@@ -8,7 +8,7 @@
 
 ![Demo](github_assets/screenshots/demo1.gif)
 
-[![Version](https://img.shields.io/badge/version-1.1.1-7c3aed?style=flat-square)](./manifest.json)
+[![Version](https://img.shields.io/badge/version-1.1.2-7c3aed?style=flat-square)](./manifest.json)
 [![Obsidian](https://img.shields.io/badge/Obsidian-1.7.2+-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://obsidian.md)
 [![Community Plugin](https://img.shields.io/badge/Community%20Plugin-available-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://community.obsidian.md/plugins/thought-agent)
 [![License](https://img.shields.io/badge/license-MIT-7c3aed?style=flat-square)](./LICENSE)
