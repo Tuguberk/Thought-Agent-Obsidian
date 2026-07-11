@@ -291,7 +291,6 @@ export class AIAgentSettingTab extends PluginSettingTab {
         slider
           .setLimits(3, 30, 1)
           .setValue(this.plugin.settings.maxIterations)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.maxIterations = value;
             await this.plugin.saveSettings();

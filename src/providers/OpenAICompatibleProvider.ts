@@ -268,7 +268,9 @@ export class OpenAICompatibleProvider implements LLMProvider {
         if (tr.type === "tool_result") {
           const trContent = tr.content;
           if (Array.isArray(trContent)) {
-            const textPart = trContent.find((b) => b.type === "text") as { type: "text"; text: string } | undefined;
+            const textPart = trContent.find(
+              (b): b is { type: "text"; text: string } => b.type === "text",
+            );
             result.push({
               role: "tool",
               content: textPart?.text ?? "",

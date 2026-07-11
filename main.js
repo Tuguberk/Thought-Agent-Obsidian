@@ -213,7 +213,7 @@ var AIAgentSettingTab = class extends import_obsidian.PluginSettingTab {
     }
     new import_obsidian.Setting(containerEl).setName("Agent").setHeading();
     new import_obsidian.Setting(containerEl).setName("Max iterations").setDesc("Maximum tool-call iterations per query (default: 15)").addSlider((slider) => {
-      slider.setLimits(3, 30, 1).setValue(this.plugin.settings.maxIterations).setDynamicTooltip().onChange(async (value) => {
+      slider.setLimits(3, 30, 1).setValue(this.plugin.settings.maxIterations).onChange(async (value) => {
         this.plugin.settings.maxIterations = value;
         await this.plugin.saveSettings();
       });
@@ -4509,7 +4509,9 @@ ${text}` });
         if (tr.type === "tool_result") {
           const trContent = tr.content;
           if (Array.isArray(trContent)) {
-            const textPart = trContent.find((b) => b.type === "text");
+            const textPart = trContent.find(
+              (b) => b.type === "text"
+            );
             result.push({
               role: "tool",
               content: textPart?.text ?? "",
@@ -5490,7 +5492,7 @@ async function embedBatchWithGoogle(texts, apiKey, model, onProgress) {
   return results;
 }
 function yieldToUI() {
-  return new Promise((resolve) => activeWindow.setTimeout(resolve, 0));
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
 // src/excalidraw/DiagramExtractor.ts
@@ -7082,7 +7084,7 @@ var VectorStore = class {
   scheduleSave() {
     if (this.saveScheduled) return;
     this.saveScheduled = true;
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       void this.save().finally(() => {
         this.saveScheduled = false;
       });
@@ -7812,7 +7814,7 @@ var DiagramWatcher = class {
   }
   debounce(path) {
     this.cancelDebounce(path);
-    this.timers.set(path, activeWindow.setTimeout(() => {
+    this.timers.set(path, window.setTimeout(() => {
       this.timers.delete(path);
       void this.indexer.reindexFile(path);
     }, 2e3));
@@ -7820,7 +7822,7 @@ var DiagramWatcher = class {
   cancelDebounce(path) {
     const t = this.timers.get(path);
     if (t) {
-      activeWindow.clearTimeout(t);
+      window.clearTimeout(t);
       this.timers.delete(path);
     }
   }

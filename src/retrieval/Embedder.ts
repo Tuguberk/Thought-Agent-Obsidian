@@ -223,5 +223,7 @@ async function embedBatchWithGoogle(
 }
 
 function yieldToUI(): Promise<void> {
-  return new Promise(resolve => activeWindow.setTimeout(resolve, 0))
+  // Obsidian review guidance: use window for timers, not activeWindow.
+  // eslint-disable-next-line obsidianmd/prefer-active-doc
+  return new Promise(resolve => window.setTimeout(resolve, 0))
 }
